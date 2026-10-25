@@ -45,6 +45,9 @@ import app.morphe.extension.tiktok.settings.Settings;
 public final class PrismBadges {
     public static final String REMOTE_URL =
             "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/claude/project-thread-thdlg5/prism-badges.txt";
+    /** Same file through jsDelivr, for networks where raw.githubusercontent.com is blocked. */
+    private static final String REMOTE_MIRROR_URL =
+            "https://cdn.jsdelivr.net/gh/meteotok/tiktok-patches-for-morph@claude/project-thread-thdlg5/prism-badges.txt";
     private static final long REMOTE_REFRESH_MS = 30L * 60 * 1000;
 
     public enum Type {
@@ -237,6 +240,10 @@ public final class PrismBadges {
             if (type == null && uid != null && !uid.isEmpty()) {
                 type = lookup(uid);
             }
+            if (type == null) {
+                // Badges granted by display name instead of @handle.
+                type = lookup(name);
+            }
             if (type == null || name.endsWith(type.emoji)) {
                 return name;
             }
@@ -288,9 +295,16 @@ public final class PrismBadges {
     }
 
     private static void fetchRemote() {
+        if (!fetchRemote(REMOTE_URL)) {
+            fetchRemote(REMOTE_MIRROR_URL);
+        }
+    }
+
+    /** Returns true when the server answered for sure (list or no list). */
+    private static boolean fetchRemote(String url) {
         HttpURLConnection connection = null;
         try {
-            connection = (HttpURLConnection) new URL(REMOTE_URL).openConnection();
+            connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setConnectTimeout(8000);
             connection.setReadTimeout(8000);
             connection.setUseCaches(false);
@@ -298,10 +312,10 @@ public final class PrismBadges {
             if (code == 404) {
                 // No file published yet: nothing to show.
                 Settings.PRISM_REMOTE_BADGE_FETCHED.save(System.currentTimeMillis());
-                return;
+                return true;
             }
             if (code != 200) {
-                return;
+                return false;
             }
             StringBuilder body = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
@@ -316,8 +330,10 @@ public final class PrismBadges {
             Settings.PRISM_REMOTE_BADGE_CACHE.save(serialize(remote));
             Settings.PRISM_REMOTE_BADGE_FETCHED.save(System.currentTimeMillis());
             PrismUi.badgesChanged();
+            return true;
         } catch (Throwable throwable) {
             Logger.printDebug(() -> "Prism: badge list fetch failed: " + throwable);
+            return false;
         } finally {
             if (connection != null) {
                 connection.disconnect();
