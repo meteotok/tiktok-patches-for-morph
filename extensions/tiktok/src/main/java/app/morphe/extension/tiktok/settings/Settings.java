@@ -204,6 +204,8 @@ public class Settings extends BaseSettings {
     public static final StringSetting PRISM_APP_ICON = new StringSetting("prism_app_icon", "prism");
     public static final BooleanSetting PRISM_GLASS_NAV = new BooleanSetting("prism_glass_nav", TRUE);
     public static final BooleanSetting PRISM_DECOR = new BooleanSetting("prism_decor", TRUE);
+    public static final BooleanSetting PRISM_UPDATE_CHECK = new BooleanSetting("prism_update_check", TRUE);
+    public static final IntegerSetting PRISM_UPDATE_SKIPPED = new IntegerSetting("prism_update_skipped", 0);
     public static final BooleanSetting PRISM_BADGES = new BooleanSetting("prism_badges", TRUE);
     public static final StringSetting PRISM_BADGE_LIST = new StringSetting("prism_badge_list", "");
     public static final BooleanSetting PRISM_REMOTE_BADGES = new BooleanSetting("prism_remote_badges", TRUE);

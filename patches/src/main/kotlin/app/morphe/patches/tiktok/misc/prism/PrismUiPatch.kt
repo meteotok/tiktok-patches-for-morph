@@ -15,7 +15,7 @@ val prismUiPatch = bytecodePatch(
     description = "Liquid glass bottom bar, color themes and nickname badges with a password protected Admin Panel.",
     default = true,
 ) {
-    dependsOn(sharedExtensionPatch, settingsPatch)
+    dependsOn(sharedExtensionPatch, settingsPatch, prismUpdatePermissionPatch)
 
     compatibleWith(*AppCompatibilities.tiktok4753())
 

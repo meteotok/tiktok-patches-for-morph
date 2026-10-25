@@ -100,6 +100,9 @@ public final class PrismUi {
         public void onActivityResumed(@NonNull Activity activity) {
             try {
                 attach(activity);
+                if (MAIN_ACTIVITY.equals(activity.getClass().getName())) {
+                    PrismUpdate.checkOnce(activity);
+                }
             } catch (Throwable throwable) {
                 Logger.printDebug(() -> "Prism attach failed: " + throwable);
             }

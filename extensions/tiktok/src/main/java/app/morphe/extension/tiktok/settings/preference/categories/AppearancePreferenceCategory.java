@@ -64,6 +64,13 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
                 Settings.PRISM_DECOR
         ));
 
+        addPreference(new TogglePreference(
+                context,
+                "Проверять обновления",
+                "При запуске Prism смотрит, вышла ли новая версия, и предлагает обновиться в одно касание.",
+                Settings.PRISM_UPDATE_CHECK
+        ));
+
         addPreference(group(context, "Liquid glass"));
         addPreference(new TogglePreference(
                 context,
