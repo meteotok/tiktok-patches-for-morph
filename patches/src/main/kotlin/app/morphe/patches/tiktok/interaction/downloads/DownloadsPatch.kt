@@ -127,9 +127,9 @@ val downloadsPatch = bytecodePatch(
             val bindCallIndices = implementation!!.instructions.withIndex()
                 .filter { (_, instruction) ->
                     instruction.getReference<MethodReference>()?.let { reference ->
-                        reference.definingClass == "LX/0ULN;" &&
+                        reference.definingClass == "LX/14fk;" &&
                             reference.name == "LIZ" &&
-                            reference.parameterTypes.firstOrNull() == "LX/0ULM;"
+                            reference.parameterTypes.firstOrNull() == "LX/14fj;"
                     } == true
                 }
                 .map { it.index }
