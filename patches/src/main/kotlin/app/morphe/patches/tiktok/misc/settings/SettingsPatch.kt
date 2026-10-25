@@ -44,12 +44,12 @@ private data class OpenDebugTargets(
 @Suppress("unused")
 val settingsPatch = bytecodePatch(
     name = "Settings",
-    description = "Adds the Metra patches settings menu to TikTok. Supports TikTok 46.2.3.",
+    description = "Adds the Metra patches settings menu to TikTok. Supports TikTok 47.5.3.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
 
     execute {
         addLegacySettingsEntryFallback()

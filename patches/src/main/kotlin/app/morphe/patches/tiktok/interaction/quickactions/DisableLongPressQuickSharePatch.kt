@@ -23,6 +23,7 @@ val disableLongPressQuickSharePatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {
