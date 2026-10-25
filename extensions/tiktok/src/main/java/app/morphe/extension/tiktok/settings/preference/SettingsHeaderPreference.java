@@ -35,7 +35,7 @@ public final class SettingsHeaderPreference extends Preference {
         return new SettingsHeaderPreference(
                 context,
                 Kind.MASTER,
-                "Settings",
+                "Настройки мода",
                 null,
                 backAction
         );
@@ -86,7 +86,7 @@ public final class SettingsHeaderPreference extends Preference {
                 SettingsUi.dp(context, 22),
                 SettingsUi.dp(context, 10)
         );
-        container.setBackgroundColor(SettingsUi.background());
+        container.setBackgroundColor(android.graphics.Color.TRANSPARENT);
 
         LinearLayout topRow = new LinearLayout(context);
         topRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -103,7 +103,7 @@ public final class SettingsHeaderPreference extends Preference {
         int buttonSize = SettingsUi.dp(context, 40);
         topRow.addView(back, new LinearLayout.LayoutParams(buttonSize, buttonSize));
 
-        TextView kicker = SettingsUi.text(context, "METRA PATCHES", 12.5f, SettingsUi.ACCENT, 1);
+        TextView kicker = SettingsUi.text(context, "PRISM", 12.5f, SettingsUi.ACCENT, 1);
         LinearLayout.LayoutParams kickerParams = new LinearLayout.LayoutParams(0, -2, 1);
         kickerParams.leftMargin = SettingsUi.dp(context, 4);
         topRow.addView(kicker, kickerParams);
@@ -111,12 +111,21 @@ public final class SettingsHeaderPreference extends Preference {
         container.addView(topRow, new LinearLayout.LayoutParams(-1, -2));
 
         TextView title = SettingsUi.text(context, heading, 32, SettingsUi.textPrimary(), 1);
+        title.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            float width = title.getPaint().measureText(heading);
+            title.getPaint().setShader(new android.graphics.LinearGradient(
+                    0, 0, Math.max(1f, width), 0,
+                    new int[]{SettingsUi.ACCENT, SettingsUi.ACCENT_2},
+                    null,
+                    android.graphics.Shader.TileMode.CLAMP
+            ));
+        });
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
         titleParams.leftMargin = SettingsUi.dp(context, 14);
         titleParams.topMargin = SettingsUi.dp(context, 2);
         container.addView(title, titleParams);
 
-        TextView menuLabel = SettingsUi.text(context, "MENUS", 12.5f, SettingsUi.textDisabled(), 1);
+        TextView menuLabel = SettingsUi.text(context, "МЕНЮ", 12.5f, SettingsUi.textDisabled(), 1);
         LinearLayout.LayoutParams menuLabelParams = new LinearLayout.LayoutParams(-1, -2);
         menuLabelParams.leftMargin = SettingsUi.dp(context, 14);
         menuLabelParams.topMargin = SettingsUi.dp(context, 18);
@@ -136,7 +145,7 @@ public final class SettingsHeaderPreference extends Preference {
                 SettingsUi.dp(context, 16),
                 0
         );
-        container.setBackgroundColor(SettingsUi.background());
+        container.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         container.setOnClickListener(view -> {
             if (backAction != null) {
                 backAction.run();
@@ -170,7 +179,7 @@ public final class SettingsHeaderPreference extends Preference {
                 SettingsUi.dp(context, 22),
                 SettingsUi.dp(context, 8)
         );
-        caption.setBackgroundColor(SettingsUi.background());
+        caption.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         return caption;
     }
 

@@ -36,7 +36,11 @@ public final class SettingsMenuPreference extends Preference {
         BEHAVIOR,
         LAB,
         DIAGNOSTICS,
-        SHARE
+        SHARE,
+        PALETTE,
+        APPS,
+        LOCK,
+        BADGE
     }
 
     private static final int ACCESSORY_TAG = 0x4D4D454E;
@@ -61,15 +65,23 @@ public final class SettingsMenuPreference extends Preference {
     @Override
     protected View onCreateView(ViewGroup parent) {
         Context context = getContext();
+        FrameLayout card = new FrameLayout(context);
+        card.setPadding(
+                SettingsUi.dp(context, 14),
+                SettingsUi.dp(context, 5),
+                SettingsUi.dp(context, 14),
+                SettingsUi.dp(context, 5)
+        );
         LinearLayout row = new LinearLayout(context);
+        row.setBackground(SettingsUi.glassCard(context, 20));
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setMinimumHeight(SettingsUi.dp(context, 68));
         row.setPadding(
-                SettingsUi.dp(context, 20),
-                SettingsUi.dp(context, 8),
-                SettingsUi.dp(context, 20),
-                SettingsUi.dp(context, 8)
+                SettingsUi.dp(context, 14),
+                SettingsUi.dp(context, 10),
+                SettingsUi.dp(context, 14),
+                SettingsUi.dp(context, 10)
         );
 
         FrameLayout iconFrame = new FrameLayout(context);
@@ -111,14 +123,15 @@ public final class SettingsMenuPreference extends Preference {
         widget.setId(android.R.id.widget_frame);
         widget.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
         row.addView(widget, new LinearLayout.LayoutParams(-2, -1));
-        return row;
+        card.addView(row, new FrameLayout.LayoutParams(-1, -2));
+        return card;
     }
 
     @Override
     protected void onBindView(View view) {
         super.onBindView(view);
         SettingsUi.styleTitleAndSummary(view);
-        view.setMinimumHeight(SettingsUi.dp(getContext(), 68));
+        view.setMinimumHeight(SettingsUi.dp(getContext(), 78));
         styleText(view);
         styleIcon(view);
         addAccessory(view);
@@ -178,7 +191,7 @@ public final class SettingsMenuPreference extends Preference {
         if (activeCount > 0) {
             TextView badge = SettingsUi.text(
                     getContext(),
-                    activeCount + " on",
+                    "вкл · " + activeCount,
                     11.5f,
                     SettingsUi.ACCENT,
                     1
@@ -209,7 +222,8 @@ public final class SettingsMenuPreference extends Preference {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         BadgeDrawable() {
-            paint.setColor(Color.argb(SettingsUi.isDarkMode() ? 38 : 24, 240, 45, 99));
+            paint.setColor(app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(
+                    SettingsUi.ACCENT, SettingsUi.isDarkMode() ? 0.18f : 0.14f));
         }
 
         @Override
@@ -279,17 +293,10 @@ public final class SettingsMenuPreference extends Preference {
 
         MenuIconDrawable(Icon icon) {
             this.icon = icon;
-            fill.setColor(SettingsUi.isDarkMode()
-                    ? Color.argb(255, 23, 23, 29)
-                    : Color.argb(255, 246, 246, 248));
-            border.setColor(SettingsUi.isDarkMode()
-                    ? Color.argb(255, 48, 48, 56)
-                    : Color.argb(255, 224, 224, 228));
+            border.setColor(app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(SettingsUi.ACCENT, 0.55f));
             border.setStyle(Paint.Style.STROKE);
-            border.setStrokeWidth(1f);
-            line.setColor(SettingsUi.isDarkMode()
-                    ? Color.argb(255, 207, 207, 215)
-                    : Color.argb(255, 72, 72, 78));
+            border.setStrokeWidth(1.2f);
+            line.setColor(SettingsUi.textPrimary());
             line.setStyle(Paint.Style.STROKE);
             line.setStrokeWidth(1.8f);
             line.setStrokeCap(Paint.Cap.ROUND);
@@ -299,7 +306,13 @@ public final class SettingsMenuPreference extends Preference {
         @Override
         public void draw(Canvas canvas) {
             RectF bounds = new RectF(getBounds());
-            float radius = bounds.width() * 0.28f;
+            float radius = bounds.width() * 0.3f;
+            fill.setShader(new android.graphics.LinearGradient(
+                    bounds.left, bounds.top, bounds.right, bounds.bottom,
+                    app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(SettingsUi.ACCENT, 0.30f),
+                    app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(SettingsUi.ACCENT_2, 0.22f),
+                    android.graphics.Shader.TileMode.CLAMP
+            ));
             canvas.drawRoundRect(bounds, radius, radius, fill);
             canvas.drawRoundRect(bounds, radius, radius, border);
 
@@ -384,6 +397,42 @@ public final class SettingsMenuPreference extends Preference {
                     canvas.drawLine(left, cy, cx - bounds.width() * 0.16f, cy, line);
                     canvas.drawLine(cx + bounds.width() * 0.16f, cy, right, cy, line);
                     break;
+                case PALETTE: {
+                    canvas.drawCircle(cx, cy, bounds.width() * 0.23f, line);
+                    float dot = bounds.width() * 0.045f;
+                    canvas.drawCircle(cx - bounds.width() * 0.09f, cy - bounds.height() * 0.08f, dot, line);
+                    canvas.drawCircle(cx + bounds.width() * 0.07f, cy - bounds.height() * 0.1f, dot, line);
+                    canvas.drawCircle(cx + bounds.width() * 0.11f, cy + bounds.height() * 0.05f, dot, line);
+                    break;
+                }
+                case APPS: {
+                    float gap = bounds.width() * 0.05f;
+                    float size = (right - left - gap) / 2f;
+                    float r = size * 0.32f;
+                    canvas.drawRoundRect(new RectF(left, top, left + size, top + size), r, r, line);
+                    canvas.drawRoundRect(new RectF(right - size, top, right, top + size), r, r, line);
+                    canvas.drawRoundRect(new RectF(left, bottom - size, left + size, bottom), r, r, line);
+                    canvas.drawRoundRect(new RectF(right - size, bottom - size, right, bottom), r, r, line);
+                    break;
+                }
+                case LOCK: {
+                    RectF body = new RectF(left, cy - bounds.height() * 0.02f, right, bottom);
+                    canvas.drawRoundRect(body, bounds.width() * 0.06f, bounds.width() * 0.06f, line);
+                    RectF shackle = new RectF(cx - bounds.width() * 0.13f, top - bounds.height() * 0.02f,
+                            cx + bounds.width() * 0.13f, cy + bounds.height() * 0.18f);
+                    canvas.drawArc(shackle, 180, 180, false, line);
+                    canvas.drawLine(cx, cy + bounds.height() * 0.08f, cx, cy + bounds.height() * 0.14f, line);
+                    break;
+                }
+                case BADGE: {
+                    path.reset();
+                    path.moveTo(cx - bounds.width() * 0.12f, cy);
+                    path.lineTo(cx - bounds.width() * 0.03f, cy + bounds.height() * 0.09f);
+                    path.lineTo(cx + bounds.width() * 0.13f, cy - bounds.height() * 0.08f);
+                    canvas.drawCircle(cx, cy, bounds.width() * 0.23f, line);
+                    canvas.drawPath(path, line);
+                    break;
+                }
                 case SHARE: {
                     float nodeRadius = bounds.width() * 0.055f;
                     float startX = left;

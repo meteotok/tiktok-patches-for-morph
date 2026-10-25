@@ -44,7 +44,7 @@ private data class OpenDebugTargets(
 @Suppress("unused")
 val settingsPatch = bytecodePatch(
     name = "Settings",
-    description = "Adds the Metra patches settings menu to TikTok. Supports TikTok 47.5.3.",
+    description = "Adds the Prism settings menu to the top of TikTok settings. Supports TikTok 47.5.3.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
@@ -267,8 +267,9 @@ val settingsPatch = bytecodePatch(
                 if (it.opcode != Opcode.INVOKE_STATIC) return@indexOfLast false
                 val reference = (it as? ReferenceInstruction)?.reference as? MethodReference
                     ?: return@indexOfLast false
-                reference.name in setOf("LJLJLLL", "LJLLLL") &&
-                    reference.parameterTypes == listOf("Ljava/util/Comparator;", "Ljava/lang/Iterable;") &&
+                // The sort helper is obfuscated (LJLJLLL / LJLLLL on older builds, LJZ on 47.5.3),
+                // so match it by signature only.
+                reference.parameterTypes == listOf("Ljava/util/Comparator;", "Ljava/lang/Iterable;") &&
                     reference.returnType == "Ljava/util/List;"
             } ?: -1
             if (sortedListIndex < 0) return false
@@ -352,7 +353,7 @@ val settingsPatch = bytecodePatch(
         val moveResultIndex = getStringInvokeIndex + 1
         val titleStringRegister = compose.getInstruction<OneRegisterInstruction>(moveResultIndex).registerA
 
-        composeMutable.addInstruction(moveResultIndex + 1, "const-string v$titleStringRegister, \"Metra patches\"")
+        composeMutable.addInstruction(moveResultIndex + 1, "const-string v$titleStringRegister, \"Prism\"")
 
         OpenDebugCellVmDefaultStateFingerprint.methodOrNull?.let { defaultState ->
             val constructorReference = defaultState.implementation!!.instructions.firstNotNullOfOrNull { instruction ->

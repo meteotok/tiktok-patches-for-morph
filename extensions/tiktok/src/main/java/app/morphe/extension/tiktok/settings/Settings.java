@@ -12,6 +12,7 @@ import app.morphe.extension.shared.settings.BaseSettings;
 import app.morphe.extension.shared.settings.BooleanSetting;
 import app.morphe.extension.shared.settings.FloatSetting;
 import app.morphe.extension.shared.settings.IntegerSetting;
+import app.morphe.extension.shared.settings.LongSetting;
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.StringSetting;
 import app.morphe.extension.tiktok.navigation.BottomNavigationTabOptions;
@@ -193,6 +194,26 @@ public class Settings extends BaseSettings {
     public static final StringSetting SHARE_SHEET_ACTIONS_OBSERVED = new StringSetting(
             "share_sheet_actions_observed",
             "",
+            false,
+            false
+    );
+
+    // Prism appearance.
+    public static final StringSetting PRISM_THEME = new StringSetting("prism_theme", "prism");
+    public static final StringSetting PRISM_APP_ICON = new StringSetting("prism_app_icon", "classic");
+    public static final BooleanSetting PRISM_GLASS_NAV = new BooleanSetting("prism_glass_nav", TRUE);
+    public static final BooleanSetting PRISM_BADGES = new BooleanSetting("prism_badges", TRUE);
+    public static final StringSetting PRISM_BADGE_LIST = new StringSetting("prism_badge_list", "");
+    public static final BooleanSetting PRISM_REMOTE_BADGES = new BooleanSetting("prism_remote_badges", TRUE);
+    public static final StringSetting PRISM_REMOTE_BADGE_CACHE = new StringSetting(
+            "prism_remote_badge_cache",
+            "",
+            false,
+            false
+    );
+    public static final LongSetting PRISM_REMOTE_BADGE_FETCHED = new LongSetting(
+            "prism_remote_badge_fetched",
+            0L,
             false,
             false
     );

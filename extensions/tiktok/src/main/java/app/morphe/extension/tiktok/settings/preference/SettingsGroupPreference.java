@@ -41,7 +41,7 @@ public final class SettingsGroupPreference extends Preference {
                 SettingsUi.dp(context, 22),
                 SettingsUi.dp(context, 7)
         );
-        heading.setBackgroundColor(SettingsUi.background());
+        heading.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         heading.setContentDescription(label + " section");
         return heading;
     }

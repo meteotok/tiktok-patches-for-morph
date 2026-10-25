@@ -26,8 +26,13 @@ import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
 
+import app.morphe.extension.shared.Utils;
+import app.morphe.extension.tiktok.prism.PrismTheme;
+
 public final class SettingsUi {
-    public static final @ColorInt int ACCENT = Color.argb(255, 240, 45, 99);
+    /** Accent of the active {@link PrismTheme}; refreshed by {@link #refreshTheme()}. */
+    public static @ColorInt int ACCENT = Color.argb(255, 240, 45, 99);
+    public static @ColorInt int ACCENT_2 = Color.argb(255, 37, 244, 238);
     public static final @ColorInt int DARK_BACKGROUND = Color.argb(255, 13, 13, 16);
     public static final @ColorInt int DARK_SURFACE = Color.argb(255, 21, 21, 26);
     public static final @ColorInt int DARK_SURFACE_LIFTED = Color.argb(255, 32, 32, 39);
@@ -53,20 +58,83 @@ public final class SettingsUi {
         return isDarkModeEnabled();
     }
 
+    public static PrismTheme theme() {
+        return PrismTheme.current();
+    }
+
+    /** Applies the selected theme. Call before building any settings view. */
+    public static void refreshTheme() {
+        PrismTheme theme = PrismTheme.current();
+        ACCENT = theme.accent;
+        ACCENT_2 = theme.accent2;
+        Utils.setIsDarkModeEnabled(theme.isDark());
+    }
+
+    /** Full page background: the theme gradient with a soft accent glow on top. */
+    public static android.graphics.drawable.Drawable pageBackground(Context context) {
+        PrismTheme theme = theme();
+        GradientDrawable base = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{theme.backgroundTop(), theme.backgroundBottom()}
+        );
+        GradientDrawable glow = new GradientDrawable();
+        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        glow.setGradientCenter(0.15f, 0.0f);
+        glow.setGradientRadius(context.getResources().getDisplayMetrics().widthPixels * 0.95f);
+        glow.setColors(new int[]{
+                PrismTheme.withAlpha(theme.accent, theme.isDark() ? 0.26f : 0.20f),
+                Color.TRANSPARENT
+        });
+        GradientDrawable glow2 = new GradientDrawable();
+        glow2.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        glow2.setGradientCenter(1.0f, 0.55f);
+        glow2.setGradientRadius(context.getResources().getDisplayMetrics().widthPixels * 0.8f);
+        glow2.setColors(new int[]{
+                PrismTheme.withAlpha(theme.accent2, theme.isDark() ? 0.14f : 0.16f),
+                Color.TRANSPARENT
+        });
+        return new android.graphics.drawable.LayerDrawable(
+                new android.graphics.drawable.Drawable[]{base, glow, glow2});
+    }
+
+    /** Rounded translucent "liquid glass" card with a bright rim. */
+    public static GradientDrawable glassCard(Context context, int radiusDp) {
+        PrismTheme theme = theme();
+        GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{
+                        PrismTheme.blend(theme.glassFill(), PrismTheme.withAlpha(theme.accent, 0.16f), 0.35f),
+                        theme.glassFill(),
+                        PrismTheme.blend(theme.glassFill(), PrismTheme.withAlpha(theme.accent2, 0.12f), 0.3f)
+                }
+        );
+        drawable.setCornerRadius(dp(context, radiusDp));
+        drawable.setStroke(Math.max(1, dp(context, 1)), theme.glassStroke());
+        return drawable;
+    }
+
     public static int dp(Context context, int value) {
         return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 
     public static @ColorInt int background() {
-        return isDarkMode() ? DARK_BACKGROUND : LIGHT_BACKGROUND;
+        return theme().backgroundTop();
     }
 
     public static @ColorInt int surface() {
-        return isDarkMode() ? DARK_SURFACE : LIGHT_SURFACE;
+        PrismTheme theme = theme();
+        if (theme.followsSystem()) {
+            return isDarkMode() ? DARK_SURFACE : LIGHT_SURFACE;
+        }
+        return PrismTheme.blend(theme.backgroundTop(), theme.isDark() ? Color.WHITE : Color.BLACK, 0.04f);
     }
 
     public static @ColorInt int liftedSurface() {
-        return isDarkMode() ? DARK_SURFACE_LIFTED : LIGHT_SURFACE_LIFTED;
+        PrismTheme theme = theme();
+        if (theme.followsSystem()) {
+            return isDarkMode() ? DARK_SURFACE_LIFTED : LIGHT_SURFACE_LIFTED;
+        }
+        return PrismTheme.blend(theme.backgroundTop(), theme.isDark() ? Color.WHITE : Color.BLACK, 0.09f);
     }
 
     public static @ColorInt int border() {
@@ -74,19 +142,19 @@ public final class SettingsUi {
     }
 
     public static @ColorInt int divider() {
-        return isDarkMode() ? DARK_DIVIDER : LIGHT_DIVIDER;
+        return theme().divider();
     }
 
     public static @ColorInt int textPrimary() {
-        return isDarkMode() ? DARK_TEXT_PRIMARY : LIGHT_TEXT_PRIMARY;
+        return theme().textPrimary();
     }
 
     public static @ColorInt int textSecondary() {
-        return isDarkMode() ? DARK_TEXT_SECONDARY : LIGHT_TEXT_SECONDARY;
+        return theme().textSecondary();
     }
 
     public static @ColorInt int textDisabled() {
-        return isDarkMode() ? DARK_TEXT_DISABLED : LIGHT_TEXT_DISABLED;
+        return theme().textDisabled();
     }
 
     public static void styleTitleAndSummary(View view) {
@@ -158,7 +226,8 @@ public final class SettingsUi {
     public static void styleFramedDialog(Dialog dialog) {
         Window window = dialog.getWindow();
         if (window != null) {
-            window.setBackgroundDrawable(borderedSurface(dialog.getContext(), 6, true));
+            window.setBackgroundDrawable(glassDialogSurface(dialog.getContext()));
+            applyBlurBehind(window, dialog.getContext());
             constrainDialogWindow(dialog, window);
         }
 
@@ -199,6 +268,37 @@ public final class SettingsUi {
         styleActionButton(dialog.getButton(DialogInterface.BUTTON_POSITIVE), true);
         styleActionButton(dialog.getButton(DialogInterface.BUTTON_NEGATIVE), false);
         styleActionButton(dialog.getButton(DialogInterface.BUTTON_NEUTRAL), false);
+    }
+
+    /** Frosted dialog panel: mostly opaque so text stays readable, with a glass rim. */
+    public static GradientDrawable glassDialogSurface(Context context) {
+        PrismTheme theme = theme();
+        GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{
+                        PrismTheme.withAlpha(PrismTheme.blend(liftedSurface(), theme.accent, 0.06f), 0.92f),
+                        PrismTheme.withAlpha(liftedSurface(), 0.90f)
+                }
+        );
+        drawable.setCornerRadius(dp(context, 22));
+        drawable.setStroke(Math.max(1, dp(context, 1)), theme.glassStroke());
+        return drawable;
+    }
+
+    /** Real background blur behind a window (Android 12+ with blur support). */
+    public static void applyBlurBehind(Window window, Context context) {
+        if (Build.VERSION.SDK_INT < 31) {
+            return;
+        }
+        try {
+            window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+            WindowManager.LayoutParams attributes = window.getAttributes();
+            attributes.setBlurBehindRadius(dp(context, 28));
+            attributes.dimAmount = 0.25f;
+            window.setAttributes(attributes);
+        } catch (Throwable ignored) {
+            // Blur is optional eye candy.
+        }
     }
 
     public static int dialogListHeight(Context context, int preferredDp) {
