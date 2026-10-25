@@ -172,8 +172,11 @@ public final class PrismUi {
                     updateGlassBar(root);
                 }
                 updateDecor(root);
-                // Badges are added at the data level now (PrismBadges.nickname), which also
-                // reaches Compose screens; scanning TextViews too would double them.
+                // The name hook adds the badge emoji everywhere (Compose included); where the
+                // name is a TextView, the emoji is swapped for the sticker image.
+                if (PrismBadges.enabled() && PrismBadges.hasAnyBadges()) {
+                    decorateBadges(root);
+                }
             } catch (Throwable throwable) {
                 Logger.printDebug(() -> "Prism scan failed: " + throwable);
             }

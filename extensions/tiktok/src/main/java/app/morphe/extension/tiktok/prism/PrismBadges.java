@@ -1,5 +1,7 @@
 package app.morphe.extension.tiktok.prism;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
@@ -56,7 +58,12 @@ public final class PrismBadges {
         STAR("star", "Звезда", "\u2B50"),
         HEART("heart", "Сердечко", "\uD83D\uDC96"),
         BOLT("bolt", "Молния", "\u26A1"),
-        COMET("comet", "Комета", "\u2604\uFE0F");
+        COMET("comet", "Комета", "\u2604\uFE0F"),
+        DIAMOND("diamond", "Бриллиант", "\uD83D\uDC8E"),
+        FLAME("flame", "Пламя", "\uD83D\uDD25"),
+        PUMPKIN("pumpkin", "Тыква", "\uD83C\uDF83"),
+        GHOST("ghost", "Призрак", "\uD83D\uDC7B"),
+        SAKURA("sakura", "Сакура", "\uD83C\uDF38");
 
         public final String key;
         public final String title;
@@ -202,6 +209,12 @@ public final class PrismBadges {
 
     // region name hook
 
+    /**
+     * Invisible word joiner in front of the badge emoji: tells our own badges apart from emoji
+     * people put in their names, so only ours are swapped for the sticker image.
+     */
+    static final String MARKER = "\u2060";
+
     /** Account handles learned from profile models, by numeric user id, for DMs that only carry the id. */
     private static final Map<String, String> handlesByUid = new ConcurrentHashMap<>();
     private static final Map<Class<?>, java.lang.reflect.Method[]> idGetters = new ConcurrentHashMap<>();
@@ -247,7 +260,7 @@ public final class PrismBadges {
             if (type == null || name.endsWith(type.emoji)) {
                 return name;
             }
-            return name + " " + type.emoji;
+            return name + " " + MARKER + type.emoji;
         } catch (Throwable ignored) {
             return name;
         }
@@ -345,25 +358,63 @@ public final class PrismBadges {
 
     // region text decoration
 
-    /** Appends the badge to a nickname TextView. Returns true if the text was changed. */
+    /** Swaps the badge emoji our name hook added for the sticker image. Returns true if changed. */
     public static boolean decorate(TextView view) {
         CharSequence text = view.getText();
-        if (text == null || text.length() == 0) {
+        if (text == null || text.length() < 3) {
             return false;
         }
         if (text instanceof Spanned && ((Spanned) text).getSpans(0, text.length(), BadgeSpan.class).length > 0) {
             return false;
         }
-        Type type = lookup(text);
-        if (type == null) {
+        String string = text.toString();
+        int marker = string.lastIndexOf(MARKER);
+        if (marker < 0) {
             return false;
         }
-        SpannableStringBuilder builder = new SpannableStringBuilder(text);
-        int start = builder.length();
-        builder.append('⁠');
-        builder.setSpan(new BadgeSpan(type), start, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        view.setText(builder);
-        return true;
+        String emoji = string.substring(marker + MARKER.length());
+        for (Type type : Type.values()) {
+            if (type.emoji.equals(emoji)) {
+                if (bitmap(type) == null) {
+                    return false;
+                }
+                SpannableStringBuilder builder = new SpannableStringBuilder(text);
+                builder.setSpan(new BadgeSpan(type), marker, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                view.setText(builder);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final Map<Type, Bitmap> bitmaps = new ConcurrentHashMap<>();
+    private static final Map<Type, Boolean> missing = new ConcurrentHashMap<>();
+
+    /** The sticker image bundled by the "Nickname badges" patch, or null. */
+    @Nullable
+    static Bitmap bitmap(Type type) {
+        Bitmap cached = bitmaps.get(type);
+        if (cached != null || missing.containsKey(type)) {
+            return cached;
+        }
+        try {
+            android.content.Context context = Utils.getContext();
+            if (context == null) {
+                return null;
+            }
+            int id = context.getResources().getIdentifier("prism_badge_" + type.key, "drawable",
+                    context.getPackageName());
+            Bitmap bitmap = id == 0 ? null : BitmapFactory.decodeResource(context.getResources(), id);
+            if (bitmap == null) {
+                missing.put(type, true);
+                return null;
+            }
+            bitmaps.put(type, bitmap);
+            return bitmap;
+        } catch (Throwable ignored) {
+            missing.put(type, true);
+            return null;
+        }
     }
 
     /** Draws the badge after the nickname, vertically centered on the text. */
@@ -419,8 +470,15 @@ public final class PrismBadges {
             rim.setColor(Color.argb(150, 255, 255, 255));
         }
 
+        private final Paint image = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
         @Override
         public void draw(@NonNull Canvas canvas) {
+            Bitmap sticker = bitmap(type);
+            if (sticker != null) {
+                canvas.drawBitmap(sticker, null, getBounds(), image);
+                return;
+            }
             RectF bounds = new RectF(getBounds());
             float cx = bounds.centerX();
             float cy = bounds.centerY();
