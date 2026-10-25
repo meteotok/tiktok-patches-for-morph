@@ -1,94 +1,170 @@
-"""Generates Prism sticker badges (shown to the right of a nickname).
+"""Generates Prism nickname badges in a realistic, rendered style.
 
-Each badge is drawn at 4x, gets a white sticker outline, a soft shadow and a gloss,
-and is saved as a 128x128 transparent PNG. A preview sheet shows them next to nicknames.
+Every badge is a set of shapes lit like 3D objects: a height map from the shape's distance
+field gives normals, which get diffuse light, an environment reflection (metals), refraction-like
+inner glow (gems) and specular highlights. Output: 128x128 transparent PNGs plus a preview sheet.
 
 Usage: python3 generate_badges.py <out_dir>
+Needs numpy, scipy and Pillow.
 """
+import colorsys
 import math
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from scipy import ndimage
 
-S = 512  # working size
+S = 512
 OUT = 128
+LIGHT = np.array([-0.45, -0.65, 0.62])
+LIGHT = LIGHT / np.linalg.norm(LIGHT)
+VIEW = np.array([0.0, 0.0, 1.0])
+HALF = (LIGHT + VIEW) / np.linalg.norm(LIGHT + VIEW)
+
+YY, XX = np.mgrid[0:S, 0:S].astype(np.float32)
 
 
-def gradient(size, top, bottom, angle=90):
-    """Linear gradient image, angle 90 = top to bottom, 0 = left to right."""
-    w, h = size
-    base = Image.new("RGBA", size)
-    px = base.load()
-    rad = math.radians(angle)
-    dx, dy = math.cos(rad), math.sin(rad)
-    lo = min(0, dx * w) + min(0, dy * h)
-    hi = max(0, dx * w) + max(0, dy * h)
-    for y in range(h):
-        for x in range(w):
-            t = ((x * dx + y * dy) - lo) / (hi - lo)
-            px[x, y] = tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(3)) + (255,)
-    return base
+def new_mask():
+    img = Image.new("L", (S, S), 0)
+    return img, ImageDraw.Draw(img)
 
 
-def multi_gradient(size, stops, angle=90):
-    w, h = size
-    img = Image.new("RGBA", size)
-    px = img.load()
-    rad = math.radians(angle)
-    dx, dy = math.cos(rad), math.sin(rad)
-    lo = min(0, dx * w) + min(0, dy * h)
-    hi = max(0, dx * w) + max(0, dy * h)
-    for y in range(h):
-        for x in range(w):
-            t = ((x * dx + y * dy) - lo) / (hi - lo)
-            for i in range(len(stops) - 1):
-                p0, c0 = stops[i]
-                p1, c1 = stops[i + 1]
-                if p0 <= t <= p1:
-                    k = (t - p0) / (p1 - p0) if p1 > p0 else 0
-                    px[x, y] = tuple(int(c0[j] + (c1[j] - c0[j]) * k) for j in range(3)) + (255,)
-                    break
-    return img
+def arr(mask_img):
+    return np.asarray(mask_img, dtype=np.float32) / 255.0
 
 
-def fill(mask, paint):
-    out = Image.new("RGBA", mask.size, (0, 0, 0, 0))
-    out.paste(paint, (0, 0), mask)
-    return out
+# region lighting
+
+def height_map(mask, bevel, profile="round", extra=None):
+    inside = mask > 0.5
+    dist = ndimage.distance_transform_edt(inside).astype(np.float32)
+    d = np.clip(dist / bevel, 0, 1)
+    if profile == "round":
+        h = np.sqrt(1 - (1 - d) ** 2) * bevel
+    elif profile == "sphere":
+        h = np.sqrt(np.clip(1 - (1 - d) ** 2, 0, 1)) * bevel * 1.4
+    else:  # linear ridges, crystal look
+        h = dist * 0.9
+    if extra is not None:
+        h = h + extra
+    return ndimage.gaussian_filter(h, 1.6)
 
 
-def sticker(art, mask, outline=22, shadow=True):
-    """White sticker border, drop shadow and a gloss on top of the artwork."""
-    border = mask.filter(ImageFilter.MaxFilter(outline * 2 + 1)).filter(ImageFilter.GaussianBlur(1.5))
+def normals(h, strength=1.0):
+    gy, gx = np.gradient(h)
+    n = np.dstack([-gx * strength, -gy * strength, np.ones_like(h)])
+    return n / np.linalg.norm(n, axis=2, keepdims=True)
+
+
+def shade(mask, n, material, height=None):
+    """Returns float RGB (S, S, 3) in 0..1 for the material."""
+    ndl = np.clip(np.tensordot(n, LIGHT, axes=1), 0, 1)
+    ndh = np.clip(np.tensordot(n, HALF, axes=1), 0, 1)
+    # Reflection of the view ray, used to look up a studio environment.
+    r = 2 * n[..., 2:3] * n - VIEW
+    ry = r[..., 1]
+    env = np.clip(0.5 - ry * 0.75, 0, 1)  # bright above, dark below
+    kind = material["kind"]
+    base = np.array(material["color"], dtype=np.float32) / 255.0
+    if kind == "metal":
+        dark = np.array(material.get("dark", tuple(c * 0.28 for c in material["color"])), dtype=np.float32) / 255.0
+        light = np.array(material.get("light", tuple(min(255, c * 1.35 + 30) for c in material["color"])),
+                         dtype=np.float32) / 255.0
+        env_col = dark + (light - dark) * env[..., None] ** 1.3
+        col = env_col * (0.55 + 0.55 * ndl[..., None])
+        spec = ndh ** material.get("shine", 60)
+        col = col + spec[..., None] * np.minimum(base * 0.6 + 0.55, 1.0)
+    elif kind == "holo":
+        hue = (np.arctan2(n[..., 1], n[..., 0]) / (2 * math.pi) + 0.15 + env * 0.35) % 1.0
+        h6 = hue * 6.0
+        c = np.dstack([np.clip(np.abs(h6 - 3) - 1, 0, 1), np.clip(2 - np.abs(h6 - 2), 0, 1),
+                       np.clip(2 - np.abs(h6 - 4), 0, 1)])
+        pastel = 0.45 + 0.55 * c
+        col = pastel * (0.45 + 0.55 * env[..., None]) * (0.6 + 0.5 * ndl[..., None])
+        col = col + (ndh ** 70)[..., None] * 0.9
+    elif kind == "gem":
+        thick = np.clip(height / (height.max() + 1e-6), 0, 1) if height is not None else 0.5
+        deep = base * 0.18
+        glow = np.minimum(base * 1.5 + 0.08, 1.0)
+        # Light passing through: brighter on the far side from the light, like real stones.
+        through = np.clip(1 - ndl, 0, 1) ** 1.5
+        col = deep + (glow - deep) * (0.35 * thick + 0.65 * through)[..., None] * 0.9
+        col = col + (0.25 * env ** 3)[..., None]
+        col = col + (ndh ** material.get("shine", 140))[..., None] * 1.3
+    elif kind == "crystal":
+        hue = (np.arctan2(n[..., 1], n[..., 0]) / (2 * math.pi) + 0.6) % 1.0
+        h6 = hue * 6.0
+        rainbow = np.dstack([np.clip(np.abs(h6 - 3) - 1, 0, 1), np.clip(2 - np.abs(h6 - 2), 0, 1),
+                             np.clip(2 - np.abs(h6 - 4), 0, 1)])
+        tilt = np.clip(1 - n[..., 2], 0, 1)
+        col = base * (0.55 + 0.5 * env[..., None]) + rainbow * (tilt * 0.55)[..., None]
+        col = col * (0.65 + 0.45 * ndl[..., None])
+        col = col + (ndh ** 90)[..., None] * 1.4
+    elif kind == "pearl":
+        col = base * (0.55 + 0.5 * ndl[..., None]) + np.array([1.0, 0.75, 0.85]) * (1 - n[..., 2:3]) * 0.25
+        col = col + (ndh ** 40)[..., None] * 0.8
+    else:  # plastic / organic
+        col = base * (0.25 + 0.85 * ndl[..., None])
+        col = col + (ndh ** material.get("shine", 30))[..., None] * material.get("spec", 0.45)
+    return np.clip(col, 0, 1)
+
+
+def render(mask_img, material, bevel=40, profile="round", extra=None, strength=1.0, alpha=1.0):
+    mask = arr(mask_img)
+    h = height_map(mask, bevel, profile, extra)
+    n = normals(h, strength)
+    col = shade(mask, n, material, h)
+    a = np.clip(mask * alpha, 0, 1)
+    rgba = np.dstack([col, a])
+    return Image.fromarray((rgba * 255).astype(np.uint8), "RGBA")
+
+
+def finish(layers, glow=None):
+    """Stacks layers over a soft contact shadow; optional colored bloom behind."""
     canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    if shadow:
-        sh = Image.new("RGBA", (S, S), (20, 10, 40, 0))
-        sh.putalpha(border.point(lambda v: int(v * 0.45)))
-        sh = sh.filter(ImageFilter.GaussianBlur(14))
-        canvas.alpha_composite(sh, (0, 10))
-    white = Image.new("RGBA", (S, S), (255, 255, 255, 0))
-    white.putalpha(border)
-    canvas.alpha_composite(white)
-    canvas.alpha_composite(art)
-    # Gloss: a soft white ellipse over the upper part, clipped to the art.
-    gloss = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(gloss).ellipse((S * 0.18, S * 0.06, S * 0.82, S * 0.5), fill=95)
-    gloss = gloss.filter(ImageFilter.GaussianBlur(18))
-    gloss = ImageChops.multiply(gloss, mask)
-    shine = Image.new("RGBA", (S, S), (255, 255, 255, 0))
-    shine.putalpha(gloss)
-    canvas.alpha_composite(shine)
+    union = Image.new("L", (S, S), 0)
+    for layer in layers:
+        union = Image.fromarray(np.maximum(np.asarray(union), np.asarray(layer.getchannel("A"))))
+    if glow is not None:
+        bloom = Image.new("RGBA", (S, S), glow + (0,))
+        bloom.putalpha(union.filter(ImageFilter.GaussianBlur(26)).point(lambda v: int(v * 0.75)))
+        canvas.alpha_composite(bloom)
+    shadow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    shadow.putalpha(union.filter(ImageFilter.GaussianBlur(12)).point(lambda v: int(v * 0.5)))
+    canvas.alpha_composite(shadow, (6, 12))
+    for layer in layers:
+        canvas.alpha_composite(layer)
     return canvas
 
 
-def sparkle(draw, cx, cy, r, color=(255, 255, 255, 255)):
+def sparkle(img, cx, cy, r, alpha=255):
+    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
     pts = []
     for i in range(8):
         a = math.pi / 4 * i - math.pi / 2
-        rr = r if i % 2 == 0 else r * 0.22
+        rr = r if i % 2 == 0 else r * 0.16
         pts.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
-    draw.polygon(pts, fill=color)
+    d.polygon(pts, fill=(255, 255, 255, alpha))
+    halo = layer.filter(ImageFilter.GaussianBlur(r * 0.25))
+    img.alpha_composite(halo)
+    img.alpha_composite(layer)
+
+
+GOLD = {"kind": "metal", "color": (255, 190, 60), "dark": (110, 52, 8), "light": (255, 238, 170), "shine": 70}
+ROSE_GOLD = {"kind": "metal", "color": (240, 160, 140), "shine": 70}
+SILVER = {"kind": "metal", "color": (226, 230, 240), "shine": 90}
+RUBY = {"kind": "gem", "color": (230, 20, 70)}
+SAPPHIRE = {"kind": "gem", "color": (40, 100, 255)}
+EMERALD = {"kind": "gem", "color": (20, 200, 120)}
+AMETHYST = {"kind": "gem", "color": (150, 80, 255)}
+PEARL = {"kind": "pearl", "color": (245, 238, 240)}
+
+# endregion
+
+# region shapes
 
 
 def star_points(cx, cy, r_out, r_in, n=5, rot=-90):
@@ -102,212 +178,218 @@ def star_points(cx, cy, r_out, r_in, n=5, rot=-90):
 
 def heart_points(cx, cy, scale):
     pts = []
-    for i in range(240):
-        t = 2 * math.pi * i / 240
+    for i in range(360):
+        t = 2 * math.pi * i / 360
         x = 16 * math.sin(t) ** 3
         y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
         pts.append((cx + x * scale, cy - y * scale))
     return pts
 
 
+def circle_mask(cx, cy, r):
+    m, d = new_mask()
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=255)
+    return m
+
+
+# endregion
+
 # region badges
 
+
 def badge_crown():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
-    d.polygon([(96, 380), (80, 170), (178, 270), (256, 120), (334, 270), (432, 170), (416, 380)], fill=255)
-    d.rounded_rectangle((92, 350, 420, 410), 18, fill=255)
-    for x, y in [(80, 160), (256, 108), (432, 160)]:
-        d.ellipse((x - 26, y - 26, x + 26, y + 26), fill=255)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 236, 140)), (0.55, (255, 190, 40)), (1, (214, 120, 0))]))
-    a = ImageDraw.Draw(art)
-    for x, c in [(176, (139, 92, 246)), (256, (34, 211, 238)), (336, (236, 72, 153))]:
-        a.ellipse((x - 24, 352, x + 24, 400), fill=c + (255,))
-        a.ellipse((x - 12, 360, x + 2, 374), fill=(255, 255, 255, 200))
-    sparkle(a, 256, 108, 20)
-    return sticker(art, mask)
-
-
-def badge_diamond():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
-    top = [(150, 130), (362, 130), (440, 220), (256, 430), (72, 220)]
-    d.polygon(top, fill=255)
-    art = fill(mask, multi_gradient((S, S), [(0, (165, 243, 252)), (0.5, (139, 92, 246)), (1, (88, 28, 135))], 60))
-    a = ImageDraw.Draw(art)
-    line = (255, 255, 255, 150)
-    for seg in [((72, 220), (440, 220)), ((150, 130), (200, 220)), ((362, 130), (312, 220)),
-                ((256, 130), (200, 220)), ((256, 130), (312, 220)), ((200, 220), (256, 430)),
-                ((312, 220), (256, 430))]:
-        a.line(seg, fill=line, width=6)
-    a.polygon([(150, 130), (256, 130), (200, 220), (72, 220)], fill=(255, 255, 255, 70))
-    sparkle(a, 380, 120, 34)
-    return sticker(art, mask)
+    m, d = new_mask()
+    d.polygon([(96, 380), (70, 160), (182, 262), (256, 108), (330, 262), (442, 160), (416, 380)], fill=255)
+    d.rounded_rectangle((84, 330, 428, 420), 24, fill=255)
+    for x, y in [(70, 150), (256, 98), (442, 150)]:
+        d.ellipse((x - 30, y - 30, x + 30, y + 30), fill=255)
+    layers = [render(m, GOLD, bevel=44)]
+    for x, mat in [(170, RUBY), (256, SAPPHIRE), (342, EMERALD)]:
+        layers.append(render(circle_mask(x, 376, 30), mat, bevel=30, profile="sphere"))
+    layers.append(render(circle_mask(256, 98, 22), RUBY, bevel=22, profile="sphere"))
+    img = finish(layers)
+    sparkle(img, 300, 150, 30)
+    return img
 
 
 def badge_verified():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
+    m, d = new_mask()
     pts = []
     for i in range(720):
         a = 2 * math.pi * i / 720
-        r = 190 + 16 * math.cos(12 * a)
+        r = 200 + 18 * math.cos(12 * a)
         pts.append((256 + math.cos(a) * r, 256 + math.sin(a) * r))
     d.polygon(pts, fill=255)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 64, 129)), (0.35, (139, 92, 246)),
-                                             (0.7, (34, 211, 238)), (1, (52, 211, 153))], 45))
-    a = ImageDraw.Draw(art)
-    a.line([(170, 262), (232, 324), (348, 196)], fill=(255, 255, 255, 255), width=46, joint="curve")
-    for x, y in [(170, 262), (348, 196)]:
-        a.ellipse((x - 23, y - 23, x + 23, y + 23), fill=(255, 255, 255, 255))
-    return sticker(art, mask)
+    check, cd = new_mask()
+    cd.line([(168, 262), (230, 324), (350, 194)], fill=255, width=52, joint="curve")
+    for x, y in [(168, 262), (350, 194)]:
+        cd.ellipse((x - 26, y - 26, x + 26, y + 26), fill=255)
+    blue = {"kind": "metal", "color": (40, 120, 255), "dark": (8, 30, 110), "light": (140, 210, 255),
+            "shine": 80}
+    layers = [render(m, blue, bevel=46), render(check, SILVER, bevel=22)]
+    return finish(layers)
+
+
+def badge_diamond():
+    m, d = new_mask()
+    d.polygon([(150, 120), (362, 120), (446, 214), (256, 440), (66, 214)], fill=255)
+    crystal = {"kind": "crystal", "color": (215, 235, 255)}
+    img = finish([render(m, crystal, profile="linear", strength=0.9)])
+    lines = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(lines)
+    for seg in [((66, 214), (446, 214)), ((150, 120), (204, 214)), ((362, 120), (308, 214)),
+                ((256, 120), (204, 214)), ((256, 120), (308, 214)), ((204, 214), (256, 440)),
+                ((308, 214), (256, 440)), ((130, 214), (256, 440)), ((382, 214), (256, 440))]:
+        ld.line(seg, fill=(255, 255, 255, 110), width=4)
+    img.alpha_composite(lines)
+    sparkle(img, 372, 132, 44)
+    sparkle(img, 170, 250, 20, 200)
+    return img
 
 
 def badge_star():
-    mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).polygon(star_points(256, 270, 215, 100), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(6)).point(lambda v: 255 if v > 128 else 0)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 240, 120)), (0.5, (255, 170, 0)), (1, (255, 72, 0))]))
-    a = ImageDraw.Draw(art)
-    a.ellipse((196, 230, 226, 270), fill=(60, 30, 0, 255))
-    a.ellipse((286, 230, 316, 270), fill=(60, 30, 0, 255))
-    a.arc((210, 250, 302, 320), 20, 160, fill=(60, 30, 0, 255), width=10)
-    a.ellipse((176, 280, 206, 300), fill=(255, 120, 120, 160))
-    a.ellipse((306, 280, 336, 300), fill=(255, 120, 120, 160))
-    return sticker(art, mask)
+    m, d = new_mask()
+    d.polygon(star_points(256, 272, 226, 104), fill=255)
+    m = m.filter(ImageFilter.GaussianBlur(5)).point(lambda v: 255 if v > 128 else 0)
+    img = finish([render(m, GOLD, profile="linear", strength=0.55)])
+    sparkle(img, 330, 150, 34)
+    return img
 
 
 def badge_bolt():
-    mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).polygon([(300, 50), (120, 290), (238, 290), (196, 462), (392, 210), (272, 210), (330, 50)],
-                                 fill=255)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 251, 160)), (0.5, (255, 214, 0)), (1, (255, 128, 0))]))
-    a = ImageDraw.Draw(art)
-    sparkle(a, 140, 140, 30, (255, 255, 255, 255))
-    return sticker(art, mask)
+    m, d = new_mask()
+    d.polygon([(300, 46), (116, 292), (236, 292), (192, 466), (396, 206), (272, 206), (334, 46)], fill=255)
+    m = m.filter(ImageFilter.GaussianBlur(3)).point(lambda v: 255 if v > 128 else 0)
+    img = finish([render(m, {"kind": "metal", "color": (255, 214, 60), "shine": 80}, profile="linear",
+                         strength=0.7)], glow=(255, 190, 40))
+    sparkle(img, 150, 140, 30)
+    return img
 
 
 def badge_heart():
-    mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).polygon(heart_points(256, 250, 12.5), fill=255)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 160, 200)), (0.5, (255, 72, 140)), (1, (200, 20, 90))]))
-    a = ImageDraw.Draw(art)
-    sparkle(a, 340, 160, 34)
-    sparkle(a, 170, 300, 18)
-    return sticker(art, mask)
-
-
-def badge_pumpkin():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
-    for cx, rw in [(160, 110), (352, 110), (210, 120), (302, 120), (256, 120)]:
-        d.ellipse((cx - rw, 150, cx + rw, 440), fill=255)
-    d.rounded_rectangle((236, 80, 280, 170), 14, fill=255)
-    art = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    body = multi_gradient((S, S), [(0, (255, 170, 60)), (1, (210, 80, 0))])
-    art.alpha_composite(fill(mask, body))
-    a = ImageDraw.Draw(art)
-    for cx, rw in [(160, 110), (352, 110), (210, 120), (302, 120)]:
-        a.ellipse((cx - rw, 150, cx + rw, 440), outline=(170, 60, 0, 255), width=6)
-    a.rounded_rectangle((236, 80, 280, 170), 14, fill=(74, 122, 38, 255))
-    face = (255, 230, 90, 255)
-    a.polygon([(160, 280), (230, 280), (195, 215)], fill=face)
-    a.polygon([(282, 280), (352, 280), (317, 215)], fill=face)
-    a.polygon([(150, 320), (190, 350), (225, 325), (256, 360), (288, 325), (322, 350), (362, 320),
-               (330, 400), (256, 415), (182, 400)], fill=face)
-    return sticker(art, mask)
-
-
-def badge_ghost():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
-    d.ellipse((116, 70, 396, 350), fill=255)
-    d.rectangle((116, 210, 396, 400), fill=255)
-    for i in range(4):
-        x = 116 + i * 70
-        d.ellipse((x, 365, x + 70, 445), fill=255)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 255, 255)), (1, (214, 206, 255))]))
-    a = ImageDraw.Draw(art)
-    a.ellipse((190, 190, 236, 250), fill=(40, 24, 70, 255))
-    a.ellipse((276, 190, 322, 250), fill=(40, 24, 70, 255))
-    a.ellipse((202, 198, 216, 214), fill=(255, 255, 255, 255))
-    a.ellipse((288, 198, 302, 214), fill=(255, 255, 255, 255))
-    a.ellipse((236, 270, 276, 310), fill=(40, 24, 70, 255))
-    a.ellipse((160, 255, 196, 275), fill=(255, 150, 190, 200))
-    a.ellipse((316, 255, 352, 275), fill=(255, 150, 190, 200))
-    return sticker(art, mask)
-
-
-def badge_sakura():
-    mask = Image.new("L", (S, S), 0)
-    petal = Image.new("L", (S, S), 0)
-    pd = ImageDraw.Draw(petal)
-    pd.ellipse((186, 70, 326, 270), fill=255)
-    pd.polygon([(236, 70), (256, 110), (276, 70)], fill=0)
-    for i in range(5):
-        mask = ImageChops.lighter(mask, petal.rotate(-72 * i, center=(256, 256)))
-    art = fill(mask, Image.radial_gradient("L").resize((S, S)).convert("RGBA"))
-    pink = multi_gradient((S, S), [(0, (255, 214, 232)), (1, (255, 120, 180))])
-    art = fill(mask, pink)
-    a = ImageDraw.Draw(art)
-    a.ellipse((216, 216, 296, 296), fill=(255, 210, 90, 255))
-    for i in range(5):
-        ang = math.radians(-90 + 72 * i)
-        a.line([(256, 256), (256 + math.cos(ang) * 90, 256 + math.sin(ang) * 90)], fill=(236, 72, 153, 255), width=6)
-        a.ellipse((256 + math.cos(ang) * 90 - 10, 256 + math.sin(ang) * 90 - 10,
-                   256 + math.cos(ang) * 90 + 10, 256 + math.sin(ang) * 90 + 10), fill=(236, 72, 153, 255))
-    return sticker(art, mask)
-
-
-def badge_comet():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
-    # Three tapered streaks behind a round head.
-    d.polygon([(70, 90), (300, 210), (250, 300)], fill=255)
-    d.polygon([(120, 60), (330, 200), (300, 230)], fill=255)
-    d.polygon([(50, 170), (260, 270), (240, 320)], fill=255)
-    d.ellipse((230, 190, 430, 390), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(8)).point(lambda v: 255 if v > 128 else 0)
-    art = fill(mask, multi_gradient((S, S), [(0, (34, 211, 238)), (0.55, (139, 92, 246)), (1, (255, 64, 129))], 35))
-    head = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(head).ellipse((250, 210, 410, 370), fill=255)
-    art.alpha_composite(fill(head, multi_gradient((S, S), [(0, (255, 255, 230)), (0.6, (255, 220, 90)),
-                                                           (1, (255, 150, 40))], 45)))
-    a = ImageDraw.Draw(art)
-    sparkle(a, 330, 290, 46, (255, 255, 255, 230))
-    sparkle(a, 150, 330, 24)
-    return sticker(art, mask)
+    m, d = new_mask()
+    d.polygon(heart_points(256, 246, 12.8), fill=255)
+    img = finish([render(m, RUBY, bevel=120, profile="round")])
+    sparkle(img, 330, 150, 36)
+    return img
 
 
 def badge_flame():
-    mask = Image.new("L", (S, S), 0)
-    d = ImageDraw.Draw(mask)
-    pts = []
-    for i in range(361):
-        t = math.radians(i)
-        r = 170 * (1 - math.sin(t)) ** 0.5 if True else 0
-        x = 256 + r * math.cos(t) * 0.9
-        y = 300 + r * math.sin(t)
-        pts.append((x, y))
-    d.polygon([(256, 50), (340, 180), (380, 300), (330, 430), (182, 430), (132, 300), (180, 200), (230, 230)],
-              fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(22)).point(lambda v: 255 if v > 128 else 0)
-    art = fill(mask, multi_gradient((S, S), [(0, (255, 214, 0)), (0.5, (255, 112, 0)), (1, (230, 20, 60))]))
-    inner = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(inner).polygon([(256, 200), (310, 300), (296, 400), (216, 400), (202, 310)], fill=255)
-    inner = inner.filter(ImageFilter.GaussianBlur(16)).point(lambda v: 255 if v > 128 else 0)
-    art.alpha_composite(fill(inner, multi_gradient((S, S), [(0, (255, 255, 200)), (1, (255, 200, 40))])))
-    return sticker(art, mask)
+    # Emissive: no lighting, layered glowing gradients.
+    def flame_mask(scale, dy):
+        m, d = new_mask()
+        pts = []
+        for i in range(200):
+            t = i / 199 * 2 * math.pi
+            # Teardrop with a flickering tip.
+            r = (1 - math.sin(t)) ** 0.9
+            x = 256 + math.cos(t) * 150 * r * scale + math.sin(t * 3) * 10 * scale
+            y = 270 - dy * 0.2 - math.sin(t) * 200 * scale + (1 - scale) * 120
+            pts.append((x, y))
+        d.polygon(pts, fill=255)
+        return m.filter(ImageFilter.GaussianBlur(4))
+
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    for scale, dy, color, blur in [(1.0, 0, (255, 60, 20), 0), (0.78, 30, (255, 140, 20), 0),
+                                   (0.52, 60, (255, 220, 80), 0), (0.3, 80, (255, 255, 230), 0)]:
+        m = flame_mask(scale, dy)
+        layer = Image.new("RGBA", (S, S), color + (0,))
+        layer.putalpha(m)
+        if scale == 1.0:
+            bloom = Image.new("RGBA", (S, S), (255, 90, 20, 0))
+            bloom.putalpha(m.filter(ImageFilter.GaussianBlur(28)).point(lambda v: int(v * 0.8)))
+            img.alpha_composite(bloom)
+        img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(6)))
+    sparkle(img, 330, 210, 20, 220)
+    return img
+
+
+def badge_comet():
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    tail, td = new_mask()
+    td.polygon([(40, 100), (330, 240), (300, 340)], fill=255)
+    tail = tail.filter(ImageFilter.GaussianBlur(26))
+    grad = Image.linear_gradient("L").rotate(-60, expand=False).resize((S, S))
+    tail_alpha = Image.fromarray((arr(tail) * arr(grad) * 255 * 1.4).clip(0, 255).astype(np.uint8))
+    for color, blur in [((120, 160, 255), 0), ((200, 230, 255), 10)]:
+        layer = Image.new("RGBA", (S, S), color + (0,))
+        layer.putalpha(tail_alpha.filter(ImageFilter.GaussianBlur(blur)))
+        img.alpha_composite(layer)
+    orb = render(circle_mask(336, 296, 104), SAPPHIRE, bevel=104, profile="sphere")
+    img.alpha_composite(finish([orb], glow=(90, 140, 255)))
+    sparkle(img, 300, 250, 40)
+    sparkle(img, 130, 330, 22, 220)
+    return img
+
+
+def badge_pumpkin():
+    lobes = [(150, 108), (362, 108), (204, 118), (308, 118), (256, 122)]
+    layers = []
+    for cx, rw in lobes:
+        m, d = new_mask()
+        d.ellipse((cx - rw, 150, cx + rw, 446), fill=255)
+        layers.append(render(m, {"kind": "plastic", "color": (240, 120, 20), "shine": 25, "spec": 0.35},
+                             bevel=80))
+    stem, sd = new_mask()
+    sd.polygon([(236, 168), (244, 92), (288, 70), (296, 86), (270, 104), (276, 168)], fill=255)
+    layers.append(render(stem, {"kind": "plastic", "color": (110, 130, 50), "shine": 20, "spec": 0.25},
+                         bevel=14))
+    img = finish(layers)
+    # Carved face lit from inside.
+    face, fd = new_mask()
+    fd.polygon([(168, 284), (232, 284), (200, 226)], fill=255)
+    fd.polygon([(280, 284), (344, 284), (312, 226)], fill=255)
+    fd.polygon([(156, 330), (196, 356), (226, 334), (256, 366), (286, 334), (316, 356), (356, 330),
+                (326, 404), (256, 420), (186, 404)], fill=255)
+    glow = Image.new("RGBA", (S, S), (255, 170, 30, 0))
+    glow.putalpha(face.filter(ImageFilter.GaussianBlur(16)).point(lambda v: int(v * 0.9)))
+    img.alpha_composite(glow)
+    inner = Image.new("RGBA", (S, S), (255, 236, 140, 0))
+    inner.putalpha(face)
+    img.alpha_composite(inner)
+    return img
+
+
+def badge_ghost():
+    m, d = new_mask()
+    d.ellipse((120, 64, 392, 336), fill=255)
+    d.rectangle((120, 200, 392, 400), fill=255)
+    for i in range(4):
+        x = 120 + i * 68
+        d.ellipse((x, 364, x + 68, 440), fill=255)
+    eyes, ed = new_mask()
+    ed.ellipse((192, 186, 236, 250), fill=255)
+    ed.ellipse((276, 186, 320, 250), fill=255)
+    ed.ellipse((236, 272, 276, 316), fill=255)
+    extra = -arr(eyes.filter(ImageFilter.GaussianBlur(6))) * 34
+    body = render(m, {"kind": "pearl", "color": (232, 236, 255)}, bevel=90, extra=extra, alpha=0.93)
+    img = finish([body], glow=(170, 190, 255))
+    shade_layer = Image.new("RGBA", (S, S), (30, 26, 60, 0))
+    shade_layer.putalpha(eyes.point(lambda v: int(v * 0.85)))
+    img.alpha_composite(shade_layer)
+    return img
+
+
+def badge_sakura():
+    petal, pd = new_mask()
+    pd.ellipse((190, 64, 322, 262), fill=255)
+    pd.polygon([(238, 64), (256, 104), (274, 64)], fill=0)
+    layers = []
+    for i in range(5):
+        layers.append(render(petal.rotate(-72 * i, center=(256, 256), resample=Image.BICUBIC),
+                             {"kind": "gem", "color": (255, 120, 175)}, bevel=60))
+    layers.append(render(circle_mask(256, 256, 54), PEARL, bevel=54, profile="sphere"))
+    return finish(layers)
 
 
 BADGES = [
     ("crown", "Корона", badge_crown),
     ("verified", "Галочка Prism", badge_verified),
-    ("diamond", "Алмаз", badge_diamond),
-    ("star", "Звезда", badge_star),
+    ("diamond", "Бриллиант", badge_diamond),
+    ("star", "Золотая звезда", badge_star),
     ("bolt", "Молния", badge_bolt),
-    ("heart", "Сердечко", badge_heart),
-    ("flame", "Огонь", badge_flame),
+    ("heart", "Рубиновое сердце", badge_heart),
+    ("flame", "Пламя", badge_flame),
     ("comet", "Комета", badge_comet),
     ("pumpkin", "Тыква", badge_pumpkin),
     ("ghost", "Призрак", badge_ghost),
@@ -318,29 +400,32 @@ BADGES = [
 
 
 def preview(images, out):
-    font_path = "/usr/share/fonts/opentype/inter/Inter-Bold.otf"
-    title = ImageFont.truetype(font_path, 44)
-    nick = ImageFont.truetype(font_path, 34)
+    bold = "/usr/share/fonts/opentype/inter/Inter-Bold.otf"
+    title = ImageFont.truetype(bold, 44)
+    nick = ImageFont.truetype(bold, 34)
     small = ImageFont.truetype("/usr/share/fonts/opentype/inter/Inter-Medium.otf", 24)
-    cols, cell_w, cell_h = 3, 420, 300
+    cols, cell_w, cell_h = 3, 420, 330
     rows = math.ceil(len(images) / cols)
-    sheet = Image.new("RGBA", (cols * cell_w + 40, rows * cell_h + 120), (14, 12, 24, 255))
+    sheet = Image.new("RGBA", (cols * cell_w + 40, rows * cell_h + 120), (12, 12, 16, 255))
     d = ImageDraw.Draw(sheet)
-    d.text((30, 30), "Prism: стикеры у ника", font=title, fill=(255, 255, 255))
+    d.text((30, 30), "Prism: значки у ника", font=title, fill=(255, 255, 255))
     for i, (key, label, img) in enumerate(images):
         x = 20 + (i % cols) * cell_w
         y = 110 + (i // cols) * cell_h
-        d.rounded_rectangle((x + 10, y + 10, x + cell_w - 10, y + cell_h - 10), 28, fill=(30, 27, 48, 255))
+        d.rounded_rectangle((x + 10, y + 10, x + cell_w - 10, y + cell_h - 10), 28, fill=(28, 28, 34, 255))
         big = img.resize((150, 150), Image.LANCZOS)
-        sheet.alpha_composite(big, (x + (cell_w - 150) // 2, y + 22))
-        # How it looks next to a nickname at real size.
+        sheet.alpha_composite(big, (x + (cell_w - 150) // 2, y + 20))
         name = "meteotok"
+        # Real size on a dark and on a light background.
         tw = d.textlength(name, font=nick)
         nx = x + (cell_w - tw - 46) // 2
-        d.text((nx, y + 190), name, font=nick, fill=(255, 255, 255))
-        sheet.alpha_composite(img.resize((40, 40), Image.LANCZOS), (int(nx + tw + 6), y + 192))
+        d.text((nx, y + 186), name, font=nick, fill=(255, 255, 255))
+        sheet.alpha_composite(img.resize((42, 42), Image.LANCZOS), (int(nx + tw + 6), y + 186))
+        d.rounded_rectangle((x + 40, y + 236, x + cell_w - 40, y + 282), 14, fill=(255, 255, 255, 255))
+        d.text((nx, y + 240), name, font=nick, fill=(22, 24, 35))
+        sheet.alpha_composite(img.resize((42, 42), Image.LANCZOS), (int(nx + tw + 6), y + 238))
         lw = d.textlength(label, font=small)
-        d.text((x + (cell_w - lw) // 2, y + 245), label, font=small, fill=(170, 165, 200))
+        d.text((x + (cell_w - lw) // 2, y + 290), label, font=small, fill=(170, 170, 185))
     sheet.convert("RGB").save(out, quality=95)
 
 
