@@ -4,3 +4,4 @@
 # Nicknames are matched without the leading @ and case-insensitively.
 # Example:
 # my_username = crown
+meteotok.tiktok_offical = crown
