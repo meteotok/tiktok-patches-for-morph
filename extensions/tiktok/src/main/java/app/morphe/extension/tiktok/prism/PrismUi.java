@@ -169,9 +169,8 @@ public final class PrismUi {
                     updateGlassBar(root);
                 }
                 updateDecor(root);
-                if (PrismBadges.enabled() && PrismBadges.hasAnyBadges()) {
-                    decorateBadges(root);
-                }
+                // Badges are added at the data level now (PrismBadges.nickname), which also
+                // reaches Compose screens; scanning TextViews too would double them.
             } catch (Throwable throwable) {
                 Logger.printDebug(() -> "Prism scan failed: " + throwable);
             }

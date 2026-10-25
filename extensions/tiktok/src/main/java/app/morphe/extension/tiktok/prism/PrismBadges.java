@@ -28,8 +28,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import app.morphe.extension.shared.Logger;
+import app.morphe.extension.shared.Utils;
 import app.morphe.extension.tiktok.settings.Settings;
 
 /**
@@ -42,23 +44,26 @@ import app.morphe.extension.tiktok.settings.Settings;
 @SuppressWarnings("unused")
 public final class PrismBadges {
     public static final String REMOTE_URL =
-            "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/main/prism-badges.txt";
-    private static final long REMOTE_REFRESH_MS = 6L * 60 * 60 * 1000;
+            "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/claude/project-thread-thdlg5/prism-badges.txt";
+    private static final long REMOTE_REFRESH_MS = 30L * 60 * 1000;
 
     public enum Type {
-        VERIFIED("verified", "Галочка"),
-        CROWN("crown", "Корона"),
-        STAR("star", "Звезда"),
-        HEART("heart", "Сердечко"),
-        BOLT("bolt", "Молния"),
-        COMET("comet", "Комета");
+        VERIFIED("verified", "Галочка", "\u2705"),
+        CROWN("crown", "Корона", "\uD83D\uDC51"),
+        STAR("star", "Звезда", "\u2B50"),
+        HEART("heart", "Сердечко", "\uD83D\uDC96"),
+        BOLT("bolt", "Молния", "\u26A1"),
+        COMET("comet", "Комета", "\u2604\uFE0F");
 
         public final String key;
         public final String title;
+        /** Shown after the name wherever TikTok draws it, Compose screens included. */
+        public final String emoji;
 
-        Type(String key, String title) {
+        Type(String key, String title, String emoji) {
             this.key = key;
             this.title = title;
+            this.emoji = emoji;
         }
 
         @Nullable
@@ -192,6 +197,72 @@ public final class PrismBadges {
 
     // endregion
 
+    // region name hook
+
+    /** Account handles learned from profile models, by numeric user id, for DMs that only carry the id. */
+    private static final Map<String, String> handlesByUid = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, java.lang.reflect.Method[]> idGetters = new ConcurrentHashMap<>();
+    private static final String[] HANDLE_GETTERS = {"getUniqueId", "getUsername"};
+    private static final String[] UID_GETTERS = {"getUid"};
+
+    /**
+     * Called by the "Prism UI" patch at the end of TikTok's user model name getters
+     * (feed, profile, comments, messages). Appends the badge emoji after the name.
+     */
+    public static String nickname(String name, Object owner) {
+        try {
+            if (name == null || owner == null || Utils.getContext() == null
+                    || !enabled() || !hasAnyBadges()) {
+                return name;
+            }
+            java.lang.reflect.Method[] getters = idGetters.get(owner.getClass());
+            if (getters == null) {
+                getters = new java.lang.reflect.Method[]{
+                        findGetter(owner.getClass(), HANDLE_GETTERS),
+                        findGetter(owner.getClass(), UID_GETTERS)
+                };
+                idGetters.put(owner.getClass(), getters);
+            }
+            String handle = getters[0] == null ? null : (String) getters[0].invoke(owner);
+            String uid = getters[1] == null ? null : (String) getters[1].invoke(owner);
+            if (handle != null && !handle.isEmpty() && uid != null && !uid.isEmpty()) {
+                handlesByUid.put(uid, handle);
+            } else if ((handle == null || handle.isEmpty()) && uid != null) {
+                handle = handlesByUid.get(uid);
+            }
+            Type type = null;
+            if (handle != null && !handle.isEmpty()) {
+                type = lookup(handle);
+            }
+            if (type == null && uid != null && !uid.isEmpty()) {
+                type = lookup(uid);
+            }
+            if (type == null || name.endsWith(type.emoji)) {
+                return name;
+            }
+            return name + " " + type.emoji;
+        } catch (Throwable ignored) {
+            return name;
+        }
+    }
+
+    @Nullable
+    private static java.lang.reflect.Method findGetter(Class<?> type, String[] names) {
+        for (String getterName : names) {
+            try {
+                java.lang.reflect.Method method = type.getMethod(getterName);
+                if (method.getReturnType() == String.class) {
+                    return method;
+                }
+            } catch (Throwable ignored) {
+                // Try the next name.
+            }
+        }
+        return null;
+    }
+
+    // endregion
+
     // region remote list
 
     public static void refreshRemote(boolean force) {
@@ -203,6 +274,10 @@ public final class PrismBadges {
             remote = Collections.unmodifiableMap(parse(Settings.PRISM_REMOTE_BADGE_CACHE.get()));
         }
         long last = Settings.PRISM_REMOTE_BADGE_FETCHED.get();
+        if (remote.isEmpty() && !remoteRequested) {
+            // Nothing cached yet (or an older build saw an empty list): ask right away.
+            force = true;
+        }
         if (!force && (remoteRequested || System.currentTimeMillis() - last < REMOTE_REFRESH_MS)) {
             return;
         }
