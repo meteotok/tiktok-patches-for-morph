@@ -51,7 +51,6 @@ internal object MainFeedResponseFingerprint : Fingerprint(
 internal object FeedItemListGetItemsFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;",
     name = "getItems",
-    accessFlags = listOf(AccessFlags.PUBLIC),
     returnType = "Ljava/util/List;",
     parameters = emptyList(),
     custom = { method, _ ->
@@ -212,7 +211,6 @@ internal object FollowFeedFingerprint : Fingerprint(
 internal object FollowFeedListGetItemsFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/follow/presenter/FollowFeedList;",
     name = "getItems",
-    accessFlags = listOf(AccessFlags.PUBLIC),
     returnType = "Ljava/util/List;",
     parameters = emptyList(),
 )

@@ -373,18 +373,22 @@ val settingsPatch = bytecodePatch(
             }
             val constructor = stateConstructor
                 ?: throw PatchException("Settings: OpenDebug state constructor was not found.")
+            // The icon holder class is obfuscated and renamed between releases (LX/08EY; on 46.2.3,
+            // LX/05a2; on 47.5.3), so take it from the first static icon load in the constructor.
             val iconLoadIndex = constructor.indexOfFirstInstructionOrThrow {
-                opcode == Opcode.SGET_OBJECT && getReference<FieldReference>()?.type == "LX/08EY;"
+                opcode == Opcode.SGET_OBJECT && getReference<FieldReference>()?.type?.startsWith("LX/") == true
             }
+            val iconType = constructor.getInstruction<ReferenceInstruction>(iconLoadIndex)
+                .getReference<FieldReference>()!!.type
             val iconRegister = constructor.getInstruction<OneRegisterInstruction>(iconLoadIndex).registerA
             val tempRegister = constructor.findFreeRegister(iconLoadIndex + 1, iconRegister)
 
             constructor.addInstructions(
                 iconLoadIndex + 1,
                 """
-                    new-instance v$iconRegister, LX/08EY;
+                    new-instance v$iconRegister, $iconType
                     const v$tempRegister, 0x7f010088
-                    invoke-direct {v$iconRegister, v$tempRegister}, LX/08EY;-><init>(I)V
+                    invoke-direct {v$iconRegister, v$tempRegister}, $iconType-><init>(I)V
                 """,
             )
         }

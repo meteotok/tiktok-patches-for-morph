@@ -22,11 +22,12 @@ internal object PlaybackSpeedSelectionBoundaryFingerprint : Fingerprint(
     ),
 )
 
+// Named setSpeed on 46.2.3, obfuscated on 47.5.3; the speed_begin log payload is stable.
 internal object PlayerControllerSetSpeedFingerprint : Fingerprint(
     definingClass = "/feed/controller/PlayerController;",
-    name = "setSpeed",
     returnType = "V",
     parameters = listOf("F"),
+    strings = listOf("speed_begin", "begin_speed"),
 )
 
 internal object SetSpeedFingerprint : Fingerprint(

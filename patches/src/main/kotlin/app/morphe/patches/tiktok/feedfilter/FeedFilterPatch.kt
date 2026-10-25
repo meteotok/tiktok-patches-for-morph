@@ -209,13 +209,12 @@ private val feedListHooksPatch = bytecodePatch {
 
         val finalFeedInsertionMethod = FinalFeedInsertionFingerprint.method
         val insertionPayloadType = finalFeedInsertionMethod.parameterTypes.single().toString()
+        // The payload constructor's parameter order changed between releases
+        // ((I, String, List) on 46.2.3, (I, List, String) on 47.5.3), so match it regardless of order.
+        val insertionPayloadParameters = listOf("I", "Ljava/lang/String;", "Ljava/util/List;")
         val insertionPayloadConstructors = mutableClassDefBy(insertionPayloadType).methods.filter { method ->
             method.name == "<init>" &&
-                method.parameterTypes.map(CharSequence::toString) == listOf(
-                    "I",
-                    "Ljava/lang/String;",
-                    "Ljava/util/List;",
-                ) &&
+                method.parameterTypes.map(CharSequence::toString).sorted() == insertionPayloadParameters.sorted() &&
                 method.returnType == "V"
         }
         if (insertionPayloadConstructors.size != 1) {
@@ -224,7 +223,10 @@ private val feedListHooksPatch = bytecodePatch {
                     "found ${insertionPayloadConstructors.size}",
             )
         }
-        insertionPayloadConstructors.single().filterLateInsertedItems(insertionPayloadType)
+        val insertionPayloadConstructor = insertionPayloadConstructors.single()
+        val insertionPayloadConstructorParameters =
+            insertionPayloadConstructor.parameterTypes.map(CharSequence::toString)
+        insertionPayloadConstructor.filterLateInsertedItems(insertionPayloadType)
 
         val finalInsertionInstructions = finalFeedInsertionMethod.implementation?.instructions
             ?: throw PatchException("Final feed insertion has no implementation")
@@ -252,6 +254,13 @@ private val feedListHooksPatch = bytecodePatch {
         }
         val positionField = "${insertionPayloadType}->${positionFields.single().name}:I"
         val sourceField = "${insertionPayloadType}->${sourceFields.single().name}:Ljava/lang/String;"
+        val insertionPayloadArguments = insertionPayloadConstructorParameters.joinToString { type ->
+            when (type) {
+                "I" -> "v2"
+                "Ljava/lang/String;" -> "v3"
+                else -> "v1"
+            }
+        }
         finalFeedInsertionMethod.addInstructions(
             0,
             """
@@ -262,7 +271,7 @@ private val feedListHooksPatch = bytecodePatch {
                 iget v2, p1, $positionField
                 iget-object v3, p1, $sourceField
                 new-instance v4, $insertionPayloadType
-                invoke-direct {v4, v2, v3, v1}, $insertionPayloadType-><init>(ILjava/lang/String;Ljava/util/List;)V
+                invoke-direct {v4, $insertionPayloadArguments}, $insertionPayloadType-><init>(${insertionPayloadConstructorParameters.joinToString("")})V
                 move-object p1, v4
                 :morphe_keep_original_insertion_payload
                 nop
@@ -699,11 +708,15 @@ private fun MutableMethod.filterLateInsertedItems(payloadType: String) {
         )
     }
 
+    val parameters = parameterTypes.map(CharSequence::toString)
+    val sourceRegister = "p${parameters.indexOf("Ljava/lang/String;") + 1}"
+    val listRegister = "p${parameters.indexOf("Ljava/util/List;") + 1}"
+
     addInstructions(
         listStoreIndices.single(),
         """
-            invoke-static/range {p2 .. p3}, $EXTENSION_CLASS_DESCRIPTOR->filterLateInsertedItems(Ljava/lang/String;Ljava/util/List;)Ljava/util/List;
-            move-result-object p3
+            invoke-static {$sourceRegister, $listRegister}, $EXTENSION_CLASS_DESCRIPTOR->filterLateInsertedItems(Ljava/lang/String;Ljava/util/List;)Ljava/util/List;
+            move-result-object $listRegister
         """,
     )
 }
