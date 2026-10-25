@@ -16,12 +16,12 @@ public final class ShareChannelOptions {
     private static final String RAW_PREFIX = "RAW:";
 
     public static final Option[] OPTIONS = {
-            new Option("repost", "Repost"),
-            new Option("copy", "Copy Link"),
-            new Option("ai_remix", "AI Remix"),
-            new Option("live_repost_note", "Live Repost Add Note"),
+            new Option("repost", "Репост"),
+            new Option("copy", "Копировать ссылку"),
+            new Option("ai_remix", "AI-ремикс"),
+            new Option("live_repost_note", "Репост LIVE с заметкой"),
             new Option("chat_merge", "Chat Merge"),
-            new Option("qr_code", "QR Code"),
+            new Option("qr_code", "QR-код"),
             new Option("sms", "SMS"),
             new Option("email", "Email"),
             new Option("facebook", "Facebook"),
@@ -35,7 +35,7 @@ public final class ShareChannelOptions {
             new Option("instagram_dm", "Instagram DM"),
             new Option("whatsapp", "WhatsApp"),
             new Option("whatsapp_business", "WhatsApp Business"),
-            new Option("whatsapp_status", "WhatsApp Status"),
+            new Option("whatsapp_status", "Статус WhatsApp"),
             new Option("telegram", "Telegram"),
             new Option("twitter", "X (Twitter)"),
             new Option("snapchat", "Snapchat"),
@@ -54,7 +54,7 @@ public final class ShareChannelOptions {
             new Option("band", "Band"),
             new Option("lemon8", "Lemon8"),
             new Option("vk", "VK"),
-            new Option("more", "More (system share sheet)"),
+            new Option("more", "Ещё (системное меню)"),
             new Option("upscrolled", "Upscrolled"),
     };
 

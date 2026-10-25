@@ -70,31 +70,9 @@ public final class SettingsUi {
         Utils.setIsDarkModeEnabled(theme.isDark());
     }
 
-    /** Full page background: the theme gradient with a soft accent glow on top. */
+    /** Page background: a solid color like TikTok's own settings, tinted by the theme. */
     public static android.graphics.drawable.Drawable pageBackground(Context context) {
-        PrismTheme theme = theme();
-        GradientDrawable base = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{theme.backgroundTop(), theme.backgroundBottom()}
-        );
-        GradientDrawable glow = new GradientDrawable();
-        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        glow.setGradientCenter(0.15f, 0.0f);
-        glow.setGradientRadius(context.getResources().getDisplayMetrics().widthPixels * 0.95f);
-        glow.setColors(new int[]{
-                PrismTheme.withAlpha(theme.accent, theme.isDark() ? 0.26f : 0.20f),
-                Color.TRANSPARENT
-        });
-        GradientDrawable glow2 = new GradientDrawable();
-        glow2.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        glow2.setGradientCenter(1.0f, 0.55f);
-        glow2.setGradientRadius(context.getResources().getDisplayMetrics().widthPixels * 0.8f);
-        glow2.setColors(new int[]{
-                PrismTheme.withAlpha(theme.accent2, theme.isDark() ? 0.14f : 0.16f),
-                Color.TRANSPARENT
-        });
-        return new android.graphics.drawable.LayerDrawable(
-                new android.graphics.drawable.Drawable[]{base, glow, glow2});
+        return new ColorDrawable(theme().backgroundTop());
     }
 
     /** Rounded translucent "liquid glass" card with a bright rim. */

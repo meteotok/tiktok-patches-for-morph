@@ -17,7 +17,7 @@ import app.morphe.extension.tiktok.settings.preference.TogglePreference;
 public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory {
     public FeedFilterPreferenceCategory(Context context, PreferenceScreen screen) {
         super(context, screen);
-        setTitle("Feed controls");
+        setTitle("Лента");
     }
 
     @Override
@@ -29,68 +29,68 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
     @Override
     public void addPreferences(Context context) {
         if (SettingsStatus.feedFilterEnabled) {
-            addPreference(group(context, "Content types"));
+            addPreference(group(context, "Типы контента"));
             addPreference(new TogglePreference(
                     context,
-                    "Remove feed ads", "Remove ads from feed.",
+                    "Убрать рекламу", "Убрать рекламу из ленты.",
                     Settings.REMOVE_ADS
             ));
             addPreference(new TogglePreference(
                     context,
-                    "Hide TikTok Shop", "Hide TikTok shop from feed.",
+                    "Скрыть TikTok Shop", "Убрать товары TikTok Shop из ленты.",
                     Settings.HIDE_SHOP
             ));
             addPreference(new TogglePreference(
                     context,
-                    "Hide livestreams", "Hide livestreams from feed.",
+                    "Скрыть трансляции", "Убрать LIVE-трансляции из ленты.",
                     Settings.HIDE_LIVE
             ));
             addPreference(new TogglePreference(
                     context,
-                    "Hide story", "Hide story from feed.",
+                    "Скрыть истории", "Убрать истории из ленты.",
                     Settings.HIDE_STORY
             ));
             addPreference(new TogglePreference(
                     context,
-                    "Hide image video", "Hide image video from feed.",
+                    "Скрыть фото-посты", "Убрать фото-посты из ленты.",
                     Settings.HIDE_IMAGE
             ));
         }
         if (SettingsStatus.hideAiContentEnabled) {
             addPreference(new TogglePreference(
                     context,
-                    "Hide AI content",
-                    "Hide posts marked as AI-generated or AI-modified by TikTok or their creators. Unmarked AI content may still appear.",
+                    "Скрыть ИИ-контент",
+                    "Скрывать посты, помеченные как созданные или изменённые ИИ. Непомеченный ИИ-контент всё равно может попадаться.",
                     Settings.HIDE_AI_CONTENT
             ));
         }
         if (SettingsStatus.hideFypSlopEnabled) {
             addPreference(new TogglePreference(
                     context,
-                    "Hide FYP unpersonalized slop videos",
-                    "Hides certain batches of unpersonalized slop posts that appear in your For You feed.",
+                    "Скрыть неперсонализированный мусор",
+                    "Скрывает пачки неперсонализированных мусорных постов в «Рекомендациях».",
                     Settings.HIDE_ALTERNATE_FOR_YOU_BATCHES
             ));
         }
 
         if (SettingsStatus.feedFilterEnabled) {
-            addPreference(group(context, "Popularity limits"));
+            addPreference(group(context, "Фильтр по популярности"));
             addPreference(new RangeValuePreference(
                     context,
-                    "Min/Max views", "The minimum or maximum views of a video to show.",
+                    "Просмотры: мин/макс", "Показывать видео только с таким числом просмотров.",
                     Settings.MIN_MAX_VIEWS
             ));
             addPreference(new RangeValuePreference(
                     context,
-                    "Min/Max likes", "The minimum or maximum likes of a video to show.",
+                    "Лайки: мин/макс", "Показывать видео только с таким числом лайков.",
                     Settings.MIN_MAX_LIKES
             ));
 
-            addPreference(group(context, "Offline fallback"));
+            addPreference(group(context, "Запасные офлайн-видео"));
             addPreference(new TogglePreference(
                     context,
-                    "Filter offline fallback videos",
-                    "Apply the general content and popularity filters to downloaded fallback videos. Separately installed AI and FYP slop filters still apply.",
+                    "Фильтровать запасные офлайн-видео",
+                    "Применять фильтры контента и популярности к скачанным запасным видео. Фильтры ИИ и мусора в «Рекомендациях» работают отдельно.",
                     Settings.FILTER_OFFLINE_FALLBACK_VIDEOS
             ));
         }

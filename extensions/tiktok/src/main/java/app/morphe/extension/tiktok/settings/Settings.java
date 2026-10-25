@@ -151,6 +151,7 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting COPY_COMMENTS_WITHOUT_USERNAME = new BooleanSetting("copy_comments_without_username", TRUE);
     public static final FloatSetting REMEMBERED_SPEED = new FloatSetting("remembered_speed_v2", 1.0f);
     public static final BooleanSetting ENABLE_LONG_PRESS_SPEED_LOCK = new BooleanSetting("enable_long_press_speed_lock", FALSE, true);
+    public static final BooleanSetting HOLD_ANYWHERE_2X = new BooleanSetting("hold_anywhere_2x", TRUE, true);
     public static final BooleanSetting DISABLE_LONG_PRESS_QUICK_SHARE =
             new BooleanSetting("disable_long_press_quick_share", FALSE);
     public static final BooleanSetting DISABLE_LONG_PRESS_REPOST =
@@ -200,7 +201,7 @@ public class Settings extends BaseSettings {
 
     // Prism appearance.
     public static final StringSetting PRISM_THEME = new StringSetting("prism_theme", "prism");
-    public static final StringSetting PRISM_APP_ICON = new StringSetting("prism_app_icon", "classic");
+    public static final StringSetting PRISM_APP_ICON = new StringSetting("prism_app_icon", "prism");
     public static final BooleanSetting PRISM_GLASS_NAV = new BooleanSetting("prism_glass_nav", TRUE);
     public static final BooleanSetting PRISM_BADGES = new BooleanSetting("prism_badges", TRUE);
     public static final StringSetting PRISM_BADGE_LIST = new StringSetting("prism_badge_list", "");

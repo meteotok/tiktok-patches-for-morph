@@ -12,13 +12,15 @@ private const val LAUNCHER_ALIAS = "com.ss.android.ugc.aweme.splash.SplashActivi
 
 // Keep in sync with app.morphe.extension.tiktok.prism.PrismIcons.
 private const val ALIAS_PREFIX = "com.ss.android.ugc.aweme.splash.PrismIcon_"
+private const val DEFAULT_ICON = "prism"
+private const val APP_NAME = "Prism"
 private val CUSTOM_ICONS = listOf("prism", "halloween", "femboy", "neon", "ocean", "gold", "sakura")
 
 @Suppress("unused")
 val appIconsPatch = resourcePatch(
     name = "App icons",
     description = "Adds Prism launcher icons (Prism, Halloween, Femboy, Neon, Ocean, Gold, Sakura) " +
-        "that can be switched in the mod settings.",
+        "that can be switched in the mod settings. Prism is the default icon and the app is named Prism.",
     default = true,
 ) {
     compatibleWith(*AppCompatibilities.tiktok4753())
@@ -65,17 +67,19 @@ val appIconsPatch = resourcePatch(
 
             val stockIcon = application.getAttribute("android:icon")
             val stockRoundIcon = application.getAttribute("android:roundIcon").ifEmpty { stockIcon }
-            val label = application.getAttribute("android:label")
+            // Launcher name: aliases carry it, the application label covers recents and settings.
+            application.setAttribute("android:label", APP_NAME)
+            val label = APP_NAME
             val targetActivity = launcher.getAttribute("android:targetActivity")
 
             var anchor: org.w3c.dom.Node = launcher
             (listOf("classic") + CUSTOM_ICONS).forEach { key ->
                 val alias = document.createElement("activity-alias")
                 alias.setAttribute("android:name", ALIAS_PREFIX + key)
-                alias.setAttribute("android:enabled", (key == "classic").toString())
+                alias.setAttribute("android:enabled", (key == DEFAULT_ICON).toString())
                 alias.setAttribute("android:exported", "true")
                 alias.setAttribute("android:targetActivity", targetActivity)
-                if (label.isNotEmpty()) alias.setAttribute("android:label", label)
+                alias.setAttribute("android:label", label)
                 if (key == "classic") {
                     alias.setAttribute("android:icon", stockIcon)
                     alias.setAttribute("android:roundIcon", stockRoundIcon)

@@ -65,23 +65,16 @@ public final class SettingsMenuPreference extends Preference {
     @Override
     protected View onCreateView(ViewGroup parent) {
         Context context = getContext();
-        FrameLayout card = new FrameLayout(context);
-        card.setPadding(
-                SettingsUi.dp(context, 14),
-                SettingsUi.dp(context, 5),
-                SettingsUi.dp(context, 14),
-                SettingsUi.dp(context, 5)
-        );
+        // Flat row like TikTok's own "Settings and privacy" list.
         LinearLayout row = new LinearLayout(context);
-        row.setBackground(SettingsUi.glassCard(context, 20));
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setMinimumHeight(SettingsUi.dp(context, 68));
+        row.setMinimumHeight(SettingsUi.dp(context, 56));
         row.setPadding(
-                SettingsUi.dp(context, 14),
-                SettingsUi.dp(context, 10),
-                SettingsUi.dp(context, 14),
-                SettingsUi.dp(context, 10)
+                SettingsUi.dp(context, 16),
+                SettingsUi.dp(context, 8),
+                SettingsUi.dp(context, 12),
+                SettingsUi.dp(context, 8)
         );
 
         FrameLayout iconFrame = new FrameLayout(context);
@@ -89,33 +82,33 @@ public final class SettingsMenuPreference extends Preference {
         ImageView icon = new ImageView(context);
         icon.setId(android.R.id.icon);
         iconFrame.addView(icon, new FrameLayout.LayoutParams(
-                SettingsUi.dp(context, 40),
-                SettingsUi.dp(context, 40),
+                SettingsUi.dp(context, 24),
+                SettingsUi.dp(context, 24),
                 Gravity.CENTER
         ));
         row.addView(iconFrame, new LinearLayout.LayoutParams(
-                SettingsUi.dp(context, 40),
-                SettingsUi.dp(context, 40)
+                SettingsUi.dp(context, 24),
+                SettingsUi.dp(context, 24)
         ));
 
         LinearLayout labels = new LinearLayout(context);
         labels.setGravity(Gravity.CENTER_VERTICAL);
         labels.setOrientation(LinearLayout.VERTICAL);
 
-        TextView title = SettingsUi.text(context, "", 15.5f, SettingsUi.textPrimary(), 1);
+        TextView title = SettingsUi.text(context, "", 16f, SettingsUi.textPrimary(), 0);
         title.setId(android.R.id.title);
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
         labels.addView(title, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView summary = SettingsUi.text(context, "", 12.8f, SettingsUi.textSecondary(), 0);
+        TextView summary = SettingsUi.text(context, "", 13f, SettingsUi.textSecondary(), 0);
         summary.setId(android.R.id.summary);
         summary.setSingleLine(true);
         summary.setEllipsize(TextUtils.TruncateAt.END);
         labels.addView(summary, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -2, 1);
-        labelParams.leftMargin = SettingsUi.dp(context, 14);
+        labelParams.leftMargin = SettingsUi.dp(context, 12);
         labelParams.rightMargin = SettingsUi.dp(context, 10);
         row.addView(labels, labelParams);
 
@@ -123,15 +116,14 @@ public final class SettingsMenuPreference extends Preference {
         widget.setId(android.R.id.widget_frame);
         widget.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
         row.addView(widget, new LinearLayout.LayoutParams(-2, -1));
-        card.addView(row, new FrameLayout.LayoutParams(-1, -2));
-        return card;
+        return row;
     }
 
     @Override
     protected void onBindView(View view) {
         super.onBindView(view);
         SettingsUi.styleTitleAndSummary(view);
-        view.setMinimumHeight(SettingsUi.dp(getContext(), 78));
+        view.setMinimumHeight(SettingsUi.dp(getContext(), 56));
         styleText(view);
         styleIcon(view);
         addAccessory(view);
@@ -140,15 +132,15 @@ public final class SettingsMenuPreference extends Preference {
     private void styleText(View view) {
         TextView title = view.findViewById(android.R.id.title);
         if (title != null) {
-            title.setTextSize(15.5f);
-            title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            title.setTextSize(16f);
+            title.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
             title.setSingleLine(true);
             title.setEllipsize(TextUtils.TruncateAt.END);
         }
 
         TextView summary = view.findViewById(android.R.id.summary);
         if (summary != null) {
-            summary.setTextSize(12.8f);
+            summary.setTextSize(13f);
             summary.setSingleLine(true);
             summary.setEllipsize(TextUtils.TruncateAt.END);
         }
@@ -159,7 +151,7 @@ public final class SettingsMenuPreference extends Preference {
         if (icon == null) {
             return;
         }
-        int size = SettingsUi.dp(getContext(), 40);
+        int size = SettingsUi.dp(getContext(), 24);
         ViewGroup.LayoutParams params = icon.getLayoutParams();
         params.width = size;
         params.height = size;
@@ -192,9 +184,9 @@ public final class SettingsMenuPreference extends Preference {
             TextView badge = SettingsUi.text(
                     getContext(),
                     "вкл · " + activeCount,
-                    11.5f,
-                    SettingsUi.ACCENT,
-                    1
+                    14f,
+                    SettingsUi.textSecondary(),
+                    0
             );
             badge.setGravity(Gravity.CENTER);
             badge.setPadding(
@@ -203,7 +195,7 @@ public final class SettingsMenuPreference extends Preference {
                     SettingsUi.dp(getContext(), 9),
                     SettingsUi.dp(getContext(), 3)
             );
-            badge.setBackground(new BadgeDrawable());
+
             accessory.addView(badge);
         }
 
@@ -306,20 +298,11 @@ public final class SettingsMenuPreference extends Preference {
         @Override
         public void draw(Canvas canvas) {
             RectF bounds = new RectF(getBounds());
-            float radius = bounds.width() * 0.3f;
-            fill.setShader(new android.graphics.LinearGradient(
-                    bounds.left, bounds.top, bounds.right, bounds.bottom,
-                    app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(SettingsUi.ACCENT, 0.30f),
-                    app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(SettingsUi.ACCENT_2, 0.22f),
-                    android.graphics.Shader.TileMode.CLAMP
-            ));
-            canvas.drawRoundRect(bounds, radius, radius, fill);
-            canvas.drawRoundRect(bounds, radius, radius, border);
-
-            float left = bounds.left + bounds.width() * 0.27f;
-            float right = bounds.right - bounds.width() * 0.27f;
-            float top = bounds.top + bounds.height() * 0.27f;
-            float bottom = bounds.bottom - bounds.height() * 0.27f;
+            line.setStrokeWidth(Math.max(1.5f, bounds.width() * 0.075f));
+            float left = bounds.left + bounds.width() * 0.1f;
+            float right = bounds.right - bounds.width() * 0.1f;
+            float top = bounds.top + bounds.height() * 0.1f;
+            float bottom = bounds.bottom - bounds.height() * 0.1f;
             float cx = bounds.centerX();
             float cy = bounds.centerY();
 

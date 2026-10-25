@@ -46,6 +46,13 @@ internal object LongPressSpeedUpEnableFingerprint : Fingerprint(
     strings = listOf("long_press_speed_up_enable"),
 )
 
+internal object LongPressSpeedUpWidthRatioFingerprint : Fingerprint(
+    name = "<clinit>",
+    returnType = "V",
+    parameters = emptyList(),
+    strings = listOf("feed_long_press_speed_up_custom_width_ratio"),
+)
+
 internal object LongPressSpeedUpLockFingerprint : Fingerprint(
     name = "invoke",
     returnType = "Ljava/lang/Object;",

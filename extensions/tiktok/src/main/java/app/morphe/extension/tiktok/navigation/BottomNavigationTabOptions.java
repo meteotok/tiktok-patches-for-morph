@@ -17,12 +17,12 @@ public final class BottomNavigationTabOptions {
     private static final String RAW_PREFIX = "RAW:";
 
     public static final Option[] OPTIONS = {
-            new Option(HOME, "Home"),
-            new Option(FRIENDS, "Friends"),
-            new Option(PUBLISH, "Create"),
-            new Option(INBOX, "Inbox"),
-            new Option(PROFILE, "Profile"),
-            new Option(MALL, "Shop"),
+            new Option(HOME, "Главная"),
+            new Option(FRIENDS, "Друзья"),
+            new Option(PUBLISH, "Создать"),
+            new Option(INBOX, "Входящие"),
+            new Option(PROFILE, "Профиль"),
+            new Option(MALL, "Магазин"),
     };
 
     private BottomNavigationTabOptions() {

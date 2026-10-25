@@ -60,7 +60,7 @@ public final class LanguageSelectionPreference extends Preference {
     public LanguageSelectionPreference(Context context, StringSetting setting) {
         super(context);
         this.setting = setting;
-        setTitle("Do not translate languages");
+        setTitle("Не переводить языки");
         setKey(setting.key);
         setValue(setting.get());
     }
@@ -96,7 +96,7 @@ public final class LanguageSelectionPreference extends Preference {
     private void refreshSummary() {
         Set<String> selected = parseCodes(value);
         if (selected.isEmpty()) {
-            setSummary("No additional languages excluded");
+            setSummary("Дополнительных исключений нет");
             return;
         }
 
@@ -110,7 +110,7 @@ public final class LanguageSelectionPreference extends Preference {
         if (names.size() <= 3) {
             setSummary(TextUtils.join(", ", names));
         } else {
-            setSummary(names.size() + " languages excluded");
+            setSummary(names.size() + " яз. исключено");
         }
     }
 
@@ -126,14 +126,14 @@ public final class LanguageSelectionPreference extends Preference {
         root.setBackground(SettingsUi.borderedSurface(context, 6, true));
 
         TextView title = new TextView(context);
-        title.setText("Do not translate languages");
+        title.setText("Не переводить языки");
         title.setTextColor(SettingsUi.textPrimary());
         title.setTextSize(20);
         title.setTypeface(title.getTypeface(), Typeface.BOLD);
         root.addView(title, matchWrap());
 
         TextView helper = new TextView(context);
-        helper.setText("Checked languages keep their original comments. TikTok's current catalog is supplemented by languages bundled with this app version.");
+        helper.setText("Комментарии на отмеченных языках не переводятся. К списку TikTok добавлены языки из этой версии приложения.");
         helper.setTextColor(SettingsUi.textSecondary());
         helper.setTextSize(14);
         LinearLayout.LayoutParams helperParams = matchWrap();
@@ -142,7 +142,7 @@ public final class LanguageSelectionPreference extends Preference {
 
         EditText search = new EditText(context);
         search.setSingleLine(true);
-        search.setHint("Search language or code");
+        search.setHint("Поиск языка или кода");
         search.setImeOptions(EditorInfo.IME_ACTION_DONE);
         SettingsUi.styleEditText(search);
         root.addView(search, matchWrap());
@@ -161,9 +161,9 @@ public final class LanguageSelectionPreference extends Preference {
 
         LinearLayout actions = new LinearLayout(context);
         actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        TextView clear = action(context, "Clear", false);
-        TextView cancel = action(context, "Cancel", false);
-        TextView save = action(context, "Save", true);
+        TextView clear = action(context, "Очистить", false);
+        TextView cancel = action(context, "Отмена", false);
+        TextView save = action(context, "Сохранить", true);
         actions.addView(clear);
         actions.addView(cancel);
         actions.addView(save);

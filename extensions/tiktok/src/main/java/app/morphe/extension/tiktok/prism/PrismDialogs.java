@@ -200,6 +200,7 @@ public final class PrismDialogs {
                     holder[0].dismiss();
                 }
                 activity.recreate();
+                askRestart(activity);
             });
             content.addView(row, rowParams(context));
         }
@@ -207,6 +208,32 @@ public final class PrismDialogs {
     }
 
     // endregion
+
+    /** TikTok caches its colors per process, so the whole-app recolor needs a fresh start. */
+    private static void askRestart(Activity activity) {
+        try {
+            new AlertDialog.Builder(activity)
+                    .setTitle("Тема применена")
+                    .setMessage("Чтобы тема легла на весь TikTok, приложение нужно перезапустить.")
+                    .setPositiveButton("Перезапустить", (dialog, which) -> restartApp(activity))
+                    .setNegativeButton("Потом", null)
+                    .show();
+        } catch (Throwable ignored) {
+            // The activity may be mid-recreate; the theme still applies on the next launch.
+        }
+    }
+
+    private static void restartApp(Activity activity) {
+        android.content.Intent intent = activity.getPackageManager()
+                .getLaunchIntentForPackage(activity.getPackageName());
+        if (intent != null) {
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            activity.startActivity(intent);
+        }
+        activity.finishAffinity();
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
 
     // region app icon picker
 

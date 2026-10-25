@@ -81,7 +81,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
     public static void openDownloadPathFolderPicker(DownloadPathPreference preference) {
         if (activeFragment == null) {
-            app.morphe.extension.shared.Utils.showToastShort("Folder picker is not available");
+            app.morphe.extension.shared.Utils.showToastShort("Выбор папки недоступен");
             return;
         }
 
@@ -94,7 +94,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             activeFragment.startActivityForResult(intent, REQUEST_DOWNLOAD_PATH_FOLDER);
         } catch (ActivityNotFoundException exception) {
             pendingDownloadPathPreference = null;
-            app.morphe.extension.shared.Utils.showToastLong("Folder picker is not available on this device");
+            app.morphe.extension.shared.Utils.showToastLong("Выбор папки недоступен на этом устройстве");
         }
     }
 
@@ -183,10 +183,10 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
         // Currently no resources can be compiled for TikTok (fails with aapt error).
         // So all TikTok Strings are hard coded in the extension.
-        restartDialogTitle = "Restart required";
-        restartDialogMessage = "Restart the app for this change to take effect.";
-        restartDialogButtonText = "Restart";
-        confirmDialogTitle = "Do you wish to proceed?";
+        restartDialogTitle = "Нужен перезапуск";
+        restartDialogMessage = "Перезапусти приложение, чтобы изменения вступили в силу.";
+        restartDialogButtonText = "Перезапустить";
+        confirmDialogTitle = "Продолжить?";
 
         SettingsUi.refreshTheme();
 
@@ -209,8 +209,8 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
         if (list != null) {
             list.setBackground(SettingsUi.pageBackground(list.getContext()));
             list.setCacheColorHint(android.graphics.Color.TRANSPARENT);
-            list.setDivider(new ColorDrawable(SettingsUi.divider()));
-            list.setDividerHeight(1);
+            list.setDivider(new ColorDrawable(android.graphics.Color.TRANSPARENT));
+            list.setDividerHeight(0);
             list.setClipToPadding(false);
             list.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         }
@@ -221,7 +221,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
         }
         Window window = activity.getWindow();
         window.setStatusBarColor(SettingsUi.theme().backgroundTop());
-        window.setNavigationBarColor(SettingsUi.theme().backgroundBottom());
+        window.setNavigationBarColor(SettingsUi.theme().backgroundTop());
         window.getDecorView().setBackground(SettingsUi.pageBackground(activity));
 
         View decor = window.getDecorView();
@@ -259,6 +259,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
     private void createMasterMenu(Context context, PreferenceScreen screen) {
         screen.addPreference(SettingsHeaderPreference.master(context, this::closeSettings));
 
+        screen.addPreference(new SettingsGroupPreference(context, "Prism"));
         addMenu(screen, Section.APPEARANCE, SettingsMenuPreference.Icon.PALETTE, countEnabled(
                 Settings.PRISM_GLASS_NAV.get(),
                 Settings.PRISM_BADGES.get()
@@ -274,6 +275,8 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
                     return true;
                 }
         ));
+
+        screen.addPreference(new SettingsGroupPreference(context, "Функции"));
 
         if (SettingsStatus.feedFilterEnabled || SettingsStatus.hideAiContentEnabled
                 || SettingsStatus.hideFypSlopEnabled) {
@@ -360,6 +363,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             ));
         }
 
+        screen.addPreference(new SettingsGroupPreference(context, "О моде"));
         screen.addPreference(new MorpheTikTokAboutPreference(context));
     }
 
@@ -446,7 +450,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
     private void openSection(Section section) {
         FragmentManager manager = getFragmentManager();
         if (manager == null || getId() == 0) {
-            Utils.showToastShort("Could not open settings section");
+            Utils.showToastShort("Не удалось открыть раздел");
             return;
         }
 
@@ -496,6 +500,9 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             count++;
         }
         if (SettingsStatus.longPressSpeedLockEnabled && Settings.ENABLE_LONG_PRESS_SPEED_LOCK.get()) {
+            count++;
+        }
+        if (SettingsStatus.longPressSpeedLockEnabled && Settings.HOLD_ANYWHERE_2X.get()) {
             count++;
         }
         if (SettingsStatus.disableLongPressQuickShareEnabled
@@ -552,7 +559,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
         String relativePath = getRelativePrimaryStoragePath(data.getData());
         if (relativePath == null) {
-            app.morphe.extension.shared.Utils.showToastLong("Only internal storage folders are supported");
+            app.morphe.extension.shared.Utils.showToastLong("Поддерживаются только папки во внутренней памяти");
             return;
         }
 

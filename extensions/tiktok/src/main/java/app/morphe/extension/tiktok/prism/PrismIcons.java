@@ -121,9 +121,7 @@ public enum PrismIcons {
                 }
                 manager.setComponentEnabledSetting(
                         new ComponentName(packageName, other.aliasName()),
-                        other == CLASSIC
-                                ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                                : PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                         PackageManager.DONT_KILL_APP
                 );
             }
