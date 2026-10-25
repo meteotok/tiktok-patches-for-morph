@@ -17,7 +17,8 @@ private const val CUSTOM_OFFLINE_VIDEOS_HELPER =
     "Lapp/morphe/extension/tiktok/offline/CustomOfflineVideosLimitPatch;"
 
 @Suppress("unused")
-val customOfflineVideosLimitPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val customOfflineVideosLimitPatch = bytecodePatch(
     name = "Custom offline videos limit",
     description = "Adds a custom entry to TikTok's offline videos menu with a configurable limit from 1 to 1000 videos.",
     default = true,

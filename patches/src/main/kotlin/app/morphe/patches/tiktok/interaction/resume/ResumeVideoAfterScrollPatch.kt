@@ -20,7 +20,8 @@ private const val EXTENSION_DESCRIPTOR =
     "Lapp/morphe/extension/tiktok/interaction/ResumeVideoAfterScrollPatch;"
 
 @Suppress("unused")
-val resumeVideoAfterScrollPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val resumeVideoAfterScrollPatch = bytecodePatch(
     name = "Resume videos after scrolling",
     description = "Continues supported videos from where playback stopped when returning after a scroll.",
     default = true,
