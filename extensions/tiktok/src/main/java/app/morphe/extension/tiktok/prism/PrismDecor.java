@@ -1,22 +1,23 @@
 package app.morphe.extension.tiktok.prism;
 
-import android.annotation.SuppressLint;
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PixelFormat;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import java.lang.ref.WeakReference;
 
 import app.morphe.extension.tiktok.settings.Settings;
 
@@ -25,10 +26,10 @@ import app.morphe.extension.tiktok.settings.Settings;
  * hearts and bows for Femboy, petals for Sakura and so on. The layer never takes touches and
  * keeps to the screen edges so videos, buttons and captions stay usable.
  */
-@SuppressLint("ViewConstructor")
-public final class PrismDecor extends View {
+public final class PrismDecor extends Drawable implements Runnable {
     private static final int FRAME_MS = 40;
 
+    private final WeakReference<View> hostRef;
     private final float dp;
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -37,41 +38,44 @@ public final class PrismDecor extends View {
     private final RectF oval = new RectF();
     private int bottomInset;
     private int topInset;
+    private boolean frameQueued;
 
-    private PrismDecor(Context context) {
-        super(context);
-        dp = context.getResources().getDisplayMetrics().density;
+    private PrismDecor(View host) {
+        hostRef = new WeakReference<>(host);
+        dp = host.getResources().getDisplayMetrics().density;
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         stroke.setStrokeJoin(Paint.Join.ROUND);
-        setClickable(false);
-        setFocusable(false);
-        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
 
-    /** Adds the layer on top of the activity content, once. */
-    static PrismDecor attach(ViewGroup decor) {
-        for (int i = 0; i < decor.getChildCount(); i++) {
-            if (decor.getChildAt(i) instanceof PrismDecor) {
-                PrismDecor existing = (PrismDecor) decor.getChildAt(i);
-                if (i != decor.getChildCount() - 1) {
-                    existing.bringToFront();
-                }
-                return existing;
-            }
+    /**
+     * Draws through the decor view's overlay, not as a child view: the overlay is outside the
+     * view hierarchy, so TikTok never sees anything covering its player.
+     */
+    static PrismDecor attach(View decor) {
+        Object tag = decor.getTag(TAG);
+        PrismDecor layer;
+        if (tag instanceof PrismDecor) {
+            layer = (PrismDecor) tag;
+        } else {
+            layer = new PrismDecor(decor);
+            decor.setTag(TAG, layer);
+            decor.getOverlay().add(layer);
         }
-        PrismDecor layer = new PrismDecor(decor.getContext());
-        decor.addView(layer, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (layer.getBounds().width() != decor.getWidth() || layer.getBounds().height() != decor.getHeight()) {
+            layer.setBounds(0, 0, decor.getWidth(), decor.getHeight());
+        }
         return layer;
     }
+
+    private static final int TAG = 0x4D455432;
 
     /** Space taken by the bottom bar (and system navigation), so ground decorations sit on it. */
     void setInsets(int top, int bottom) {
         if (top != topInset || bottom != bottomInset) {
             topInset = top;
             bottomInset = bottom;
-            invalidate();
+            invalidateSelf();
         }
     }
 
@@ -83,53 +87,73 @@ public final class PrismDecor extends View {
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        return false;
+    public void run() {
+        frameQueued = false;
+        invalidateSelf();
     }
 
     @Override
-    protected void onDraw(@NonNull Canvas canvas) {
+    public void draw(@NonNull Canvas canvas) {
         if (!enabled()) {
             return;
         }
-        float w = getWidth();
-        float h = getHeight();
+        float w = getBounds().width();
+        float h = getBounds().height();
         if (w <= 0 || h <= 0) {
             return;
         }
         float t = (SystemClock.uptimeMillis() % 600_000L) / 1000f;
         float ground = h - Math.max(bottomInset, 0);
         boolean animated;
-        switch (PrismTheme.current()) {
-            case HALLOWEEN:
-                animated = drawHalloween(canvas, w, ground, t);
-                break;
-            case FEMBOY:
-                animated = drawFemboy(canvas, w, ground, t);
-                break;
-            case NEON:
-                animated = drawNeon(canvas, w, ground, t);
-                break;
-            case OCEAN:
-                animated = drawOcean(canvas, w, ground, t);
-                break;
-            case GOLD:
-                animated = drawGold(canvas, w, ground, t);
-                break;
-            case SAKURA:
-                animated = drawSakura(canvas, w, ground, t);
-                break;
-            case PRISM:
-                animated = drawPrism(canvas, w, ground, t);
-                break;
-            default:
-                animated = false;
+        try {
+            switch (PrismTheme.current()) {
+                case HALLOWEEN:
+                    animated = drawHalloween(canvas, w, ground, t);
+                    break;
+                case FEMBOY:
+                    animated = drawFemboy(canvas, w, ground, t);
+                    break;
+                case NEON:
+                    animated = drawNeon(canvas, w, ground, t);
+                    break;
+                case OCEAN:
+                    animated = drawOcean(canvas, w, ground, t);
+                    break;
+                case GOLD:
+                    animated = drawGold(canvas, w, ground, t);
+                    break;
+                case SAKURA:
+                    animated = drawSakura(canvas, w, ground, t);
+                    break;
+                case PRISM:
+                    animated = drawPrism(canvas, w, ground, t);
+                    break;
+                default:
+                    animated = false;
+            }
+        } catch (Throwable ignored) {
+            // Decorations must never break TikTok's drawing.
+            animated = false;
         }
-        if (animated && isShown()) {
-            postInvalidateDelayed(FRAME_MS);
+        View host = hostRef.get();
+        if (animated && !frameQueued && host != null && host.isShown()) {
+            frameQueued = true;
+            host.postDelayed(this, FRAME_MS);
         }
+    }
+
+    @Override
+    public void setAlpha(int alpha) {
+    }
+
+    @Override
+    public void setColorFilter(@Nullable ColorFilter colorFilter) {
+    }
+
+    @Override
+    public int getOpacity() {
+        return PixelFormat.TRANSLUCENT;
     }
 
     // region Halloween

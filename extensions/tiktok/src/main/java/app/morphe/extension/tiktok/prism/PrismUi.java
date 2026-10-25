@@ -180,17 +180,14 @@ public final class PrismUi {
         // region theme decorations
 
         private void updateDecor(View root) {
-            if (!(root instanceof ViewGroup)) {
-                return;
-            }
             if (!PrismDecor.enabled()) {
                 PrismDecor existing = decorRef.get();
                 if (existing != null) {
-                    existing.invalidate();
+                    existing.invalidateSelf();
                 }
                 return;
             }
-            PrismDecor layer = PrismDecor.attach((ViewGroup) root);
+            PrismDecor layer = PrismDecor.attach(root);
             decorRef = new WeakReference<>(layer);
             int top = 0;
             int bottom = 0;
@@ -208,7 +205,7 @@ public final class PrismUi {
                 bottom = Math.max(bottom, rootLocation[1] + root.getHeight() - barLocation[1]);
             }
             layer.setInsets(top, bottom);
-            layer.invalidate();
+            layer.invalidateSelf();
         }
 
         // endregion
