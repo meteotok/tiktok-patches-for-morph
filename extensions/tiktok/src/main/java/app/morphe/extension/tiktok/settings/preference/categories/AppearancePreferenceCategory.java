@@ -56,6 +56,14 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
                 }
         ));
 
+        addPreference(new TogglePreference(
+                context,
+                "Украшения темы",
+                "Рисунки темы поверх всего TikTok: паутина, паучки и тыквы на Хеллоуин, "
+                        + "сердечки, лепестки, пузыри и блёстки в других темах.",
+                Settings.PRISM_DECOR
+        ));
+
         addPreference(group(context, "Liquid glass"));
         addPreference(new TogglePreference(
                 context,
@@ -63,12 +71,7 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
                 "Вкладки на парящей стеклянной пилюле, открытая вкладка подсвечена цветом темы.",
                 Settings.PRISM_GLASS_NAV
         ));
-        addPreference(new TogglePreference(
-                context,
-                "Стеклянные верхние вкладки",
-                "«Подписки» и «Рекомендации» в стеклянной капсуле с подсветкой открытой вкладки.",
-                Settings.PRISM_GLASS_TOP
-        ));
+
 
         addPreference(group(context, "Бейджи"));
         addPreference(new TogglePreference(

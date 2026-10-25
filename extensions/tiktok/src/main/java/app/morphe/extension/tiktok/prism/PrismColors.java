@@ -15,8 +15,12 @@ import app.morphe.extension.shared.Utils;
 @SuppressWarnings({"unused", "deprecation"})
 public final class PrismColors {
     // TikTok red/pink and cyan as used across 47.x.
-    private static final int[] BRAND_RED = {0xFE2C55, 0xFF3B5C, 0xEA4359, 0xF7375A, 0xE62C4F};
+    private static final int[] BRAND_RED = {0xFE2C55, 0xFF3B5C, 0xEA4359, 0xF7375A, 0xE62C4F, 0xF93659};
     private static final int[] BRAND_CYAN = {0x25F4EE, 0x20D5EC, 0x00F2EA};
+
+    // Surface greys of TikTok's dark and light screens (never used for text there).
+    private static final int[] DARK_SURFACES = {0x121212, 0x1E1E1E, 0x252525};
+    private static final int[] LIGHT_SURFACES = {0xF8F8F8, 0xF5F5F5};
 
     private static volatile boolean ready;
 
@@ -47,6 +51,21 @@ public final class PrismColors {
             for (int cyan : BRAND_CYAN) {
                 if (rgb == cyan) {
                     return alpha | (theme.accent2 & 0xFFFFFF);
+                }
+            }
+            // Surfaces pick up the theme's background tint.
+            for (int surface : DARK_SURFACES) {
+                if (rgb == surface) {
+                    int target = theme.isDark() ? theme.backgroundTop()
+                            : PrismTheme.blend(0xFF000000, theme.accent, 0.25f);
+                    return alpha | (PrismTheme.blend(0xFF000000 | rgb, target, 0.65f) & 0xFFFFFF);
+                }
+            }
+            for (int surface : LIGHT_SURFACES) {
+                if (rgb == surface) {
+                    int target = theme.isDark() ? PrismTheme.blend(0xFFFFFFFF, theme.accent, 0.12f)
+                            : theme.backgroundTop();
+                    return alpha | (PrismTheme.blend(0xFF000000 | rgb, target, 0.65f) & 0xFFFFFF);
                 }
             }
         } catch (Throwable ignored) {
