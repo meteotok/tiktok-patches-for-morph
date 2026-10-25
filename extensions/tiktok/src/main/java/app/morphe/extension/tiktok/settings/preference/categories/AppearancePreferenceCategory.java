@@ -59,8 +59,8 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
         addPreference(new TogglePreference(
                 context,
                 "Украшения темы",
-                "Рисунки темы поверх всего TikTok: паутина, паучки и тыквы на Хеллоуин, "
-                        + "сердечки, лепестки, пузыри и блёстки в других темах.",
+                "Маленькие рисунки темы в строке состояния: паутина, паучок и тыквы на Хеллоуин, "
+                        + "бантики, лепестки, пузыри и блёстки в других темах. Ничего не закрывают.",
                 Settings.PRISM_DECOR
         ));
 

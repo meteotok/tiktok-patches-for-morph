@@ -104,8 +104,12 @@ public final class PrismDecor extends Drawable implements Runnable {
             return;
         }
         float t = (SystemClock.uptimeMillis() % 600_000L) / 1000f;
-        float ground = h - Math.max(bottomInset, 0);
+        // Everything stays inside the status bar strip and a hair below it: TikTok has no
+        // other spot that is free on every screen (sheets, search, comments, the player).
+        float ground = Math.max(topInset, 24 * dp);
         boolean animated;
+        canvas.save();
+        canvas.clipRect(0, 0, w, ground * 1.25f);
         try {
             switch (PrismTheme.current()) {
                 case HALLOWEEN:
@@ -136,6 +140,7 @@ public final class PrismDecor extends Drawable implements Runnable {
             // Decorations must never break TikTok's drawing.
             animated = false;
         }
+        canvas.restore();
         View host = hostRef.get();
         if (animated && !frameQueued && host != null && host.isShown()) {
             frameQueued = true;
@@ -158,36 +163,32 @@ public final class PrismDecor extends Drawable implements Runnable {
 
     // region Halloween
 
-    private boolean drawHalloween(Canvas canvas, float w, float ground, float t) {
-        edgeFog(canvas, w, ground, Color.rgb(142, 45, 226), Color.rgb(255, 122, 24));
+    private boolean drawHalloween(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(142, 45, 226));
 
-        cobweb(canvas, 0, 0, 92 * dp, 1);
-        cobweb(canvas, w, 0, 78 * dp, -1);
+        cobweb(canvas, 0, 0, band * 1.2f, 1);
+        cobweb(canvas, w, 0, band * 1.1f, -1);
 
-        // A spider dangling from the right web, swinging and bobbing.
-        float swing = (float) Math.sin(t * 1.6) * 7f;
-        float length = 120 * dp + (float) Math.sin(t * 0.7) * 14 * dp;
+        // A tiny spider bobbing on its thread from the right web.
+        float swing = (float) Math.sin(t * 1.6) * 6f;
+        float x = w - band * 0.62f;
+        float length = band * 0.45f + (float) Math.sin(t * 0.7) * band * 0.06f;
         canvas.save();
-        canvas.rotate(swing, w - 46 * dp, 34 * dp);
+        canvas.rotate(swing, x, 0);
         stroke.setShader(null);
-        stroke.setColor(Color.argb(170, 255, 255, 255));
-        stroke.setStrokeWidth(1f * dp);
-        canvas.drawLine(w - 46 * dp, 34 * dp, w - 46 * dp, 34 * dp + length, stroke);
-        spider(canvas, w - 46 * dp, 34 * dp + length + 9 * dp, 1f);
+        stroke.setColor(Color.argb(150, 255, 255, 255));
+        stroke.setStrokeWidth(0.8f * dp);
+        canvas.drawLine(x, 0, x, length, stroke);
+        spider(canvas, x, length + band * 0.16f, band / (64 * dp));
         canvas.restore();
 
-        // A smaller one on the left web, still.
-        spider(canvas, 54 * dp, 46 * dp, 0.6f);
-
-        // Bats flapping across the top.
+        // A bat flitting next to the pumpkins, clear of the clock and the camera cutout.
         float flap = (float) Math.sin(t * 9);
-        bat(canvas, w * 0.30f + (float) Math.sin(t * 0.5) * 18 * dp, 70 * dp + (float) Math.cos(t * 0.8) * 6 * dp, 13 * dp, flap);
-        bat(canvas, w * 0.62f + (float) Math.cos(t * 0.4) * 22 * dp, 96 * dp + (float) Math.sin(t * 0.9) * 5 * dp, 9 * dp, -flap);
+        bat(canvas, w * 0.585f + (float) Math.sin(t * 0.6) * band * 0.25f, band * 0.42f, band * 0.17f, flap);
 
-        // Jack-o'-lantern and the candy bucket sitting on the bottom bar.
         float flicker = 0.75f + 0.25f * (float) Math.abs(Math.sin(t * 6.3) * Math.sin(t * 2.1));
-        pumpkin(canvas, 34 * dp, ground - 22 * dp, 25 * dp, flicker);
-        candyBucket(canvas, w - 40 * dp, ground - 24 * dp, 24 * dp);
+        pumpkin(canvas, w * 0.645f, band * 0.56f, band * 0.3f, flicker);
+        candyBucket(canvas, w * 0.705f, band * 0.62f, band * 0.26f);
         return true;
     }
 
@@ -400,96 +401,84 @@ public final class PrismDecor extends Drawable implements Runnable {
 
     // region other themes
 
-    private boolean drawFemboy(Canvas canvas, float w, float ground, float t) {
-        edgeFog(canvas, w, ground, Color.rgb(255, 111, 181), Color.rgb(126, 200, 255));
-        bow(canvas, 36 * dp, 40 * dp, 18 * dp, Color.rgb(255, 111, 181));
-        bow(canvas, w - 36 * dp, 40 * dp, 14 * dp, Color.rgb(126, 200, 255));
-        // Hearts floating up along both edges.
-        for (int i = 0; i < 6; i++) {
-            float phase = ((t * 0.12f) + i / 6f) % 1f;
-            float x = (i % 2 == 0 ? 22 * dp : w - 22 * dp) + (float) Math.sin(t * 1.3 + i) * 8 * dp;
-            float y = ground - 30 * dp - phase * ground * 0.55f;
-            int alpha = (int) (220 * Math.sin(Math.PI * phase));
-            heart(canvas, x, y, (7 + (i % 3) * 2) * dp,
-                    PrismTheme.withAlpha(i % 3 == 0 ? Color.rgb(126, 200, 255) : Color.rgb(255, 111, 181), alpha / 255f));
+    private boolean drawFemboy(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(255, 111, 181));
+        bow(canvas, w * 0.6f, band * 0.5f, band * 0.22f, Color.rgb(255, 111, 181));
+        for (int i = 0; i < 3; i++) {
+            float phase = ((t * 0.25f) + i / 3f) % 1f;
+            float x = w * (0.65f + i * 0.035f);
+            float y = band * (0.9f - phase * 0.7f);
+            heart(canvas, x, y, band * 0.11f, PrismTheme.withAlpha(
+                    i == 1 ? Color.rgb(126, 200, 255) : Color.rgb(255, 111, 181),
+                    (float) Math.sin(Math.PI * phase)));
         }
-        sparkles(canvas, w, ground, t, Color.WHITE);
+        sparkles(canvas, w, band, t, Color.WHITE);
         return true;
     }
 
-    private boolean drawNeon(Canvas canvas, float w, float ground, float t) {
-        float pulse = 0.65f + 0.35f * (float) Math.sin(t * 2.4);
-        cornerBrackets(canvas, w, ground, Color.rgb(57, 255, 20), Color.rgb(255, 0, 229), pulse);
-        sparkles(canvas, w, ground, t, Color.rgb(57, 255, 20));
-        return true;
-    }
-
-    private boolean drawOcean(Canvas canvas, float w, float ground, float t) {
-        edgeFog(canvas, w, ground, Color.rgb(0, 194, 255), Color.rgb(0, 255, 163));
-        for (int i = 0; i < 10; i++) {
-            float phase = ((t * (0.08f + (i % 3) * 0.02f)) + i / 10f) % 1f;
-            float x = (i % 2 == 0 ? 16 * dp + (i % 4) * 6 * dp : w - 16 * dp - (i % 4) * 6 * dp)
-                    + (float) Math.sin(t * 2 + i) * 5 * dp;
-            float y = ground - 10 * dp - phase * ground * 0.7f;
-            float r = (3 + (i % 4) * 1.6f) * dp;
-            stroke.setShader(null);
-            stroke.setColor(Color.argb((int) (190 * (1 - phase)), 200, 245, 255));
-            stroke.setStrokeWidth(1.2f * dp);
-            canvas.drawCircle(x, y, r, stroke);
-            fill.setShader(null);
-            fill.setColor(Color.argb((int) (160 * (1 - phase)), 255, 255, 255));
-            canvas.drawCircle(x - r * 0.35f, y - r * 0.35f, r * 0.25f, fill);
+    private boolean drawNeon(Canvas canvas, float w, float band, float t) {
+        float pulse = 0.6f + 0.4f * (float) Math.sin(t * 2.4);
+        // A glowing seam under the status bar, green fading into magenta.
+        for (int layer = 2; layer >= 0; layer--) {
+            stroke.setStrokeWidth((1.2f + layer * 2.5f) * dp);
+            stroke.setShader(new LinearGradient(0, 0, w, 0,
+                    PrismTheme.withAlpha(Color.rgb(57, 255, 20), layer == 0 ? 0.9f : 0.18f * pulse),
+                    PrismTheme.withAlpha(Color.rgb(255, 0, 229), layer == 0 ? 0.9f : 0.18f * pulse),
+                    Shader.TileMode.CLAMP));
+            canvas.drawLine(0, band - 1.5f * dp, w, band - 1.5f * dp, stroke);
         }
-        seaweed(canvas, 14 * dp, ground, t, 1);
-        seaweed(canvas, w - 14 * dp, ground, t, -1);
-        return true;
-    }
-
-    private boolean drawGold(Canvas canvas, float w, float ground, float t) {
-        edgeFog(canvas, w, ground, Color.rgb(255, 196, 0), Color.rgb(255, 120, 40));
-        crown(canvas, w - 40 * dp, ground - 18 * dp, 20 * dp);
-        sparkles(canvas, w, ground, t, Color.rgb(255, 214, 90));
-        return true;
-    }
-
-    private boolean drawSakura(Canvas canvas, float w, float ground, float t) {
-        // Branch with blossoms in the top left corner.
         stroke.setShader(null);
-        stroke.setColor(Color.rgb(92, 58, 48));
-        stroke.setStrokeWidth(5 * dp);
-        path.reset();
-        path.moveTo(-4 * dp, 26 * dp);
-        path.cubicTo(40 * dp, 34 * dp, 70 * dp, 22 * dp, 118 * dp, 46 * dp);
-        canvas.drawPath(path, stroke);
-        stroke.setStrokeWidth(3 * dp);
-        canvas.drawLine(60 * dp, 30 * dp, 84 * dp, 68 * dp, stroke);
-        blossom(canvas, 40 * dp, 26 * dp, 9 * dp);
-        blossom(canvas, 82 * dp, 70 * dp, 8 * dp);
-        blossom(canvas, 116 * dp, 46 * dp, 10 * dp);
-        blossom(canvas, 72 * dp, 22 * dp, 7 * dp);
-        // Falling petals.
-        for (int i = 0; i < 9; i++) {
-            float phase = ((t * (0.05f + (i % 3) * 0.015f)) + i / 9f) % 1f;
-            float x = (i * 0.11f + 0.04f) * w + (float) Math.sin(t * 1.1 + i * 1.7) * 26 * dp;
-            float y = phase * ground;
-            petal(canvas, x, y, 5.5f * dp, t * 90 + i * 40, (int) (230 * Math.sin(Math.PI * phase)));
+        sparkles(canvas, w, band, t, Color.rgb(57, 255, 20));
+        return true;
+    }
+
+    private boolean drawOcean(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(0, 194, 255));
+        for (int i = 0; i < 6; i++) {
+            float phase = ((t * (0.18f + (i % 3) * 0.05f)) + i / 6f) % 1f;
+            float x = w * (0.56f + (i % 3) * 0.06f) + (float) Math.sin(t * 2 + i) * band * 0.08f;
+            float y = band * (1.05f - phase);
+            float r = band * (0.06f + (i % 3) * 0.025f);
+            stroke.setShader(null);
+            stroke.setColor(Color.argb((int) (200 * (1 - phase)), 200, 245, 255));
+            stroke.setStrokeWidth(1f * dp);
+            canvas.drawCircle(x, y, r, stroke);
         }
         return true;
     }
 
-    private boolean drawPrism(Canvas canvas, float w, float ground, float t) {
-        edgeFog(canvas, w, ground, Color.rgb(139, 92, 246), Color.rgb(34, 211, 238));
-        // A little glass prism splitting light into a rainbow.
-        float px = w - 34 * dp;
-        float py = 40 * dp;
-        float s = 15 * dp;
+    private boolean drawGold(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(255, 196, 0));
+        crown(canvas, w * 0.64f, band * 0.55f, band * 0.26f);
+        sparkles(canvas, w, band, t, Color.rgb(255, 214, 90));
+        return true;
+    }
+
+    private boolean drawSakura(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(236, 72, 153));
+        blossom(canvas, w * 0.6f, band * 0.5f, band * 0.22f);
+        blossom(canvas, w * 0.68f, band * 0.4f, band * 0.16f);
+        for (int i = 0; i < 4; i++) {
+            float phase = ((t * 0.2f) + i / 4f) % 1f;
+            float x = w * (0.56f + i * 0.045f) + (float) Math.sin(t * 1.1 + i * 1.7) * band * 0.15f;
+            petal(canvas, x, phase * band * 1.15f, band * 0.08f, t * 90 + i * 40,
+                    (int) (230 * Math.sin(Math.PI * phase)));
+        }
+        return true;
+    }
+
+    private boolean drawPrism(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(139, 92, 246));
+        float px = w * 0.66f;
+        float py = band * 0.5f;
+        float s = band * 0.26f;
         int[] rainbow = {Color.rgb(255, 64, 64), Color.rgb(255, 170, 0), Color.rgb(255, 235, 59),
                 Color.rgb(76, 217, 100), Color.rgb(34, 211, 238), Color.rgb(139, 92, 246)};
         stroke.setShader(null);
-        stroke.setStrokeWidth(2.2f * dp);
+        stroke.setStrokeWidth(1.4f * dp);
         for (int i = 0; i < rainbow.length; i++) {
             stroke.setColor(PrismTheme.withAlpha(rainbow[i], 0.75f));
-            canvas.drawLine(px - s * 0.2f, py + s * 0.3f, px - 70 * dp, py + 30 * dp + i * 5 * dp, stroke);
+            canvas.drawLine(px - s * 0.3f, py + s * 0.2f, px - band * 1.6f, py - s + i * s * 0.4f, stroke);
         }
         path.reset();
         path.moveTo(px, py - s);
@@ -497,12 +486,10 @@ public final class PrismDecor extends Drawable implements Runnable {
         path.lineTo(px - s, py + s * 0.8f);
         path.close();
         fill.setShader(new LinearGradient(px - s, py - s, px + s, py + s,
-                Color.argb(200, 255, 255, 255), Color.argb(90, 180, 200, 255), Shader.TileMode.CLAMP));
+                Color.argb(220, 255, 255, 255), Color.argb(110, 180, 200, 255), Shader.TileMode.CLAMP));
         canvas.drawPath(path, fill);
-        stroke.setColor(Color.argb(230, 255, 255, 255));
-        stroke.setStrokeWidth(1.2f * dp);
-        canvas.drawPath(path, stroke);
-        sparkles(canvas, w, ground, t, Color.WHITE);
+        fill.setShader(null);
+        sparkles(canvas, w, band, t, Color.WHITE);
         return true;
     }
 
@@ -510,26 +497,23 @@ public final class PrismDecor extends Drawable implements Runnable {
 
     // region shapes
 
-    /** Soft colored mist at the top and above the bottom bar. */
-    private void edgeFog(Canvas canvas, float w, float ground, int top, int bottom) {
-        float band = 120 * dp;
-        fill.setShader(new LinearGradient(0, 0, 0, band,
-                PrismTheme.withAlpha(top, 0.30f), PrismTheme.withAlpha(top, 0f), Shader.TileMode.CLAMP));
-        canvas.drawRect(0, 0, w, band, fill);
-        fill.setShader(new LinearGradient(0, ground - band, 0, ground,
-                PrismTheme.withAlpha(bottom, 0f), PrismTheme.withAlpha(bottom, 0.26f), Shader.TileMode.CLAMP));
-        canvas.drawRect(0, ground - band, w, ground, fill);
+    /** Theme-colored tint of the status bar strip, fading out just below it. */
+    private void bandFog(Canvas canvas, float w, float band, int color) {
+        fill.setShader(new LinearGradient(0, 0, 0, band * 1.25f,
+                PrismTheme.withAlpha(color, 0.45f), PrismTheme.withAlpha(color, 0f), Shader.TileMode.CLAMP));
+        canvas.drawRect(0, 0, w, band * 1.25f, fill);
         fill.setShader(null);
     }
 
-    private void sparkles(Canvas canvas, float w, float ground, float t, int color) {
-        float[][] spots = {{0.08f, 0.16f}, {0.92f, 0.22f}, {0.06f, 0.62f}, {0.94f, 0.48f}, {0.5f, 0.07f}, {0.88f, 0.8f}};
+    /** Twinkles in the free middle-right part of the status bar. */
+    private void sparkles(Canvas canvas, float w, float band, float t, int color) {
+        float[][] spots = {{0.57f, 0.3f}, {0.62f, 0.75f}, {0.69f, 0.35f}, {0.73f, 0.8f}};
         for (int i = 0; i < spots.length; i++) {
             float twinkle = (float) Math.max(0, Math.sin(t * 1.8 + i * 1.3));
             if (twinkle <= 0.05f) {
                 continue;
             }
-            star(canvas, spots[i][0] * w, spots[i][1] * ground, (4 + 4 * twinkle) * dp,
+            star(canvas, spots[i][0] * w, spots[i][1] * band, band * (0.06f + 0.08f * twinkle),
                     PrismTheme.withAlpha(color, 0.9f * twinkle));
         }
     }
@@ -578,50 +562,6 @@ public final class PrismDecor extends Drawable implements Runnable {
         canvas.drawPath(path, fill);
         fill.setColor(PrismTheme.blend(color, Color.WHITE, 0.35f));
         canvas.drawCircle(x, y, r * 0.28f, fill);
-    }
-
-    private void cornerBrackets(Canvas canvas, float w, float ground, int a, int b, float pulse) {
-        float len = 46 * dp;
-        float inset = 10 * dp;
-        for (int layer = 3; layer >= 0; layer--) {
-            stroke.setShader(null);
-            stroke.setStrokeWidth((2 + layer * 3) * dp);
-            float alpha = layer == 0 ? 1f : 0.16f * pulse;
-            stroke.setColor(PrismTheme.withAlpha(a, alpha));
-            path.reset();
-            path.moveTo(inset, inset + len);
-            path.lineTo(inset, inset);
-            path.lineTo(inset + len, inset);
-            path.moveTo(w - inset, ground - inset - len);
-            path.lineTo(w - inset, ground - inset);
-            path.lineTo(w - inset - len, ground - inset);
-            canvas.drawPath(path, stroke);
-            stroke.setColor(PrismTheme.withAlpha(b, alpha));
-            path.reset();
-            path.moveTo(w - inset - len, inset);
-            path.lineTo(w - inset, inset);
-            path.lineTo(w - inset, inset + len);
-            path.moveTo(inset + len, ground - inset);
-            path.lineTo(inset, ground - inset);
-            path.lineTo(inset, ground - inset - len);
-            canvas.drawPath(path, stroke);
-        }
-    }
-
-    private void seaweed(Canvas canvas, float x, float ground, float t, int direction) {
-        stroke.setShader(null);
-        stroke.setStrokeWidth(4 * dp);
-        for (int i = 0; i < 3; i++) {
-            float sway = (float) Math.sin(t * 1.2 + i) * 8 * dp;
-            float bx = x + direction * i * 7 * dp;
-            float height = (40 + i * 14) * dp;
-            stroke.setColor(PrismTheme.withAlpha(Color.rgb(20, 180, 120), 0.75f));
-            path.reset();
-            path.moveTo(bx, ground);
-            path.cubicTo(bx + sway, ground - height * 0.35f, bx - sway, ground - height * 0.7f,
-                    bx + sway * 0.6f, ground - height);
-            canvas.drawPath(path, stroke);
-        }
     }
 
     private void crown(Canvas canvas, float x, float y, float r) {
