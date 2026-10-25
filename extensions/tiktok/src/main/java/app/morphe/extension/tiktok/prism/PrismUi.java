@@ -8,7 +8,6 @@ import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -26,7 +25,10 @@ import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -43,6 +45,13 @@ public final class PrismUi {
     private static final String MAIN_ACTIVITY = "com.ss.android.ugc.aweme.main.MainActivity";
     private static final int SCAN_DELAY_MS = 220;
     private static final int TAG_SCANNER = 0x4D455431;
+
+    /** Feed tab labels at the top of the home screen, in the languages TikTok ships most. */
+    private static final Set<String> TOP_TAB_LABELS = new HashSet<>(Arrays.asList(
+            "for you", "following", "friends", "explore", "live", "shop", "stem", "nearby",
+            "рекомендации", "подписки", "друзья", "интересное", "обзор", "магазин", "для вас",
+            "рядом", "прямой эфир"
+    ));
 
     private static boolean registered;
     private static final Map<Activity, Scanner> scanners = new WeakHashMap<>();
@@ -128,6 +137,7 @@ public final class PrismUi {
         private final WeakReference<Activity> activityRef;
         private final boolean isMain;
         private WeakReference<View> barRef = new WeakReference<>(null);
+        private WeakReference<View> topRef = new WeakReference<>(null);
         private View decor;
 
         Scanner(Activity activity) {
@@ -167,6 +177,7 @@ public final class PrismUi {
                 }
                 if (isMain) {
                     updateGlassBar(root);
+                    updateTopTabs(root);
                 }
                 if (PrismBadges.enabled() && PrismBadges.hasAnyBadges()) {
                     decorateBadges(root);
@@ -310,6 +321,276 @@ public final class PrismUi {
         }
 
         // endregion
+
+        // region top tabs
+
+        private void updateTopTabs(View root) {
+            View host = topRef.get();
+            if (host == null || !host.isAttachedToWindow() || !host.isShown()) {
+                List<TextView> labels = new ArrayList<>();
+                collectTopLabels(root, root, labels);
+                host = labels.size() >= 2 ? commonParent(labels) : null;
+                topRef = new WeakReference<>(host);
+                if (host == null) {
+                    return;
+                }
+                List<WeakReference<TextView>> refs = new ArrayList<>();
+                for (TextView label : labels) {
+                    refs.add(new WeakReference<>(label));
+                }
+                host.setTag(TAG_SCANNER + 1, refs);
+                host.getViewTreeObserver().addOnPreDrawListener(new TopKeeper(host));
+            }
+            TopKeeper.apply(host);
+        }
+
+        private static void collectTopLabels(View root, View view, List<TextView> out) {
+            if (view.getVisibility() != View.VISIBLE) {
+                return;
+            }
+            if (view instanceof TextView) {
+                CharSequence text = ((TextView) view).getText();
+                if (text == null || !TOP_TAB_LABELS.contains(text.toString().trim().toLowerCase())) {
+                    return;
+                }
+                int[] location = new int[2];
+                view.getLocationOnScreen(location);
+                int[] rootLocation = new int[2];
+                root.getLocationOnScreen(rootLocation);
+                if (location[1] - rootLocation[1] < root.getHeight() * 0.2f && view.getWidth() > 0) {
+                    out.add((TextView) view);
+                }
+                return;
+            }
+            if (view instanceof ViewGroup) {
+                ViewGroup group = (ViewGroup) view;
+                for (int i = 0, count = group.getChildCount(); i < count; i++) {
+                    collectTopLabels(root, group.getChildAt(i), out);
+                }
+            }
+        }
+
+        @Nullable
+        private static View commonParent(List<TextView> labels) {
+            List<View> chain = new ArrayList<>();
+            for (Object parent = labels.get(0).getParent(); parent instanceof View;
+                 parent = ((View) parent).getParent()) {
+                chain.add((View) parent);
+            }
+            for (View candidate : chain) {
+                boolean containsAll = true;
+                for (TextView label : labels) {
+                    if (!isDescendant(label, candidate)) {
+                        containsAll = false;
+                        break;
+                    }
+                }
+                if (containsAll) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        private static boolean isDescendant(View view, View ancestor) {
+            for (Object parent = view.getParent(); parent instanceof View; parent = ((View) parent).getParent()) {
+                if (parent == ancestor) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // endregion
+    }
+
+    /** Keeps the glass capsule behind the For You / Following tabs. */
+    private static final class TopKeeper implements ViewTreeObserver.OnPreDrawListener {
+        private final WeakReference<View> hostRef;
+        private WeakReference<View> lastSelected = new WeakReference<>(null);
+
+        TopKeeper(View host) {
+            hostRef = new WeakReference<>(host);
+        }
+
+        @Override
+        public boolean onPreDraw() {
+            View host = hostRef.get();
+            if (host == null) {
+                return true;
+            }
+            if (!host.isAttachedToWindow()) {
+                ViewTreeObserver observer = host.getViewTreeObserver();
+                if (observer.isAlive()) {
+                    observer.removeOnPreDrawListener(this);
+                }
+                return true;
+            }
+            apply(host);
+            Drawable background = host.getBackground();
+            if (background instanceof TopTabsDrawable) {
+                View selected = ((TopTabsDrawable) background).selected();
+                if (selected != lastSelected.get()) {
+                    lastSelected = new WeakReference<>(selected);
+                    host.invalidate();
+                }
+            }
+            return true;
+        }
+
+        @SuppressWarnings("unchecked")
+        static void apply(View host) {
+            Drawable background = host.getBackground();
+            boolean enabled = Settings.PRISM_GLASS_TOP.get();
+            if (background instanceof TopTabsDrawable) {
+                TopTabsDrawable top = (TopTabsDrawable) background;
+                if (!enabled) {
+                    host.setBackground(top.original);
+                } else if (top.builtFor != GlassBarDrawable.version) {
+                    host.setBackground(new TopTabsDrawable(host, top.original, top.labels));
+                }
+                return;
+            }
+            Object labels = host.getTag(TAG_SCANNER + 1);
+            if (!enabled || !(labels instanceof List)) {
+                return;
+            }
+            host.setBackground(new TopTabsDrawable(host, background, (List<WeakReference<TextView>>) labels));
+        }
+    }
+
+    /** TikTok's own background, then a frosted capsule wrapping the feed tabs. */
+    static final class TopTabsDrawable extends Drawable {
+        @Nullable
+        final Drawable original;
+        final List<WeakReference<TextView>> labels;
+        final int builtFor;
+        private final WeakReference<View> hostRef;
+        private final float density;
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bubble = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF pill = new RectF();
+        private final RectF tab = new RectF();
+        private final int[] hostLocation = new int[2];
+        private final int[] labelLocation = new int[2];
+
+        TopTabsDrawable(View host, @Nullable Drawable original, List<WeakReference<TextView>> labels) {
+            this.original = original;
+            this.labels = labels;
+            this.builtFor = GlassBarDrawable.version;
+            this.hostRef = new WeakReference<>(host);
+            density = host.getResources().getDisplayMetrics().density;
+            rim.setStyle(Paint.Style.STROKE);
+            rim.setStrokeWidth(Math.max(1f, 1f * density));
+        }
+
+        /** TikTok dims the tabs that are not open, so the most opaque label is the open one. */
+        @Nullable
+        TextView selected() {
+            TextView best = null;
+            float bestAlpha = -1;
+            for (WeakReference<TextView> ref : labels) {
+                TextView label = ref.get();
+                if (label == null || !label.isShown()) {
+                    continue;
+                }
+                float alpha = label.getAlpha() * Color.alpha(label.getCurrentTextColor());
+                if (label.isSelected()) {
+                    alpha += 1000;
+                }
+                if (alpha > bestAlpha + 1) {
+                    bestAlpha = alpha;
+                    best = label;
+                }
+            }
+            return best;
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            if (original != null) {
+                original.setBounds(getBounds());
+                original.draw(canvas);
+            }
+            View host = hostRef.get();
+            if (host == null) {
+                return;
+            }
+            host.getLocationOnScreen(hostLocation);
+            float left = Float.MAX_VALUE, top = Float.MAX_VALUE, right = -Float.MAX_VALUE, bottom = -Float.MAX_VALUE;
+            int shown = 0;
+            for (WeakReference<TextView> ref : labels) {
+                TextView label = ref.get();
+                if (label == null || !label.isShown()) {
+                    continue;
+                }
+                label.getLocationOnScreen(labelLocation);
+                float x = labelLocation[0] - hostLocation[0];
+                float y = labelLocation[1] - hostLocation[1];
+                left = Math.min(left, x);
+                top = Math.min(top, y);
+                right = Math.max(right, x + label.getWidth());
+                bottom = Math.max(bottom, y + label.getHeight());
+                shown++;
+            }
+            if (shown < 2) {
+                return;
+            }
+            PrismTheme theme = PrismTheme.current();
+            float padX = 12 * density;
+            float padY = 4 * density;
+            pill.set(left - padX, top - padY, right + padX, bottom + padY);
+            float radius = pill.height() / 2f;
+
+            // Dark frosted capsule: the feed behind is video, so white text stays readable.
+            fill.setShader(new LinearGradient(0, pill.top, 0, pill.bottom,
+                    Color.argb(92, 255, 255, 255), Color.argb(60, 20, 20, 28), Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(pill, radius, radius, fill);
+            fill.setShader(null);
+            fill.setColor(PrismTheme.withAlpha(Color.BLACK, 0.22f));
+            canvas.drawRoundRect(pill, radius, radius, fill);
+
+            TextView selected = selected();
+            if (selected != null) {
+                selected.getLocationOnScreen(labelLocation);
+                float x = labelLocation[0] - hostLocation[0];
+                tab.set(x - 9 * density, pill.top + 3 * density,
+                        x + selected.getWidth() + 9 * density, pill.bottom - 3 * density);
+                float tabRadius = tab.height() / 2f;
+                bubble.setShader(new LinearGradient(tab.left, 0, tab.right, 0,
+                        PrismTheme.withAlpha(theme.accent, 0.55f), PrismTheme.withAlpha(theme.accent2, 0.45f),
+                        Shader.TileMode.CLAMP));
+                canvas.drawRoundRect(tab, tabRadius, tabRadius, bubble);
+            }
+
+            rim.setShader(new LinearGradient(pill.left, 0, pill.right, 0,
+                    new int[]{
+                            PrismTheme.withAlpha(theme.accent, 0.8f),
+                            PrismTheme.withAlpha(Color.WHITE, 0.45f),
+                            PrismTheme.withAlpha(theme.accent2, 0.8f)
+                    },
+                    new float[]{0f, 0.5f, 1f},
+                    Shader.TileMode.CLAMP));
+            float inset = rim.getStrokeWidth() / 2f;
+            pill.inset(inset, inset);
+            canvas.drawRoundRect(pill, radius - inset, radius - inset, rim);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            fill.setAlpha(alpha);
+        }
+
+        @Override
+        public void setColorFilter(@Nullable ColorFilter colorFilter) {
+            fill.setColorFilter(colorFilter);
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
     }
 
     /** Puts the glass back whenever TikTok repaints the bar with its own color. */
@@ -334,8 +615,15 @@ public final class PrismUi {
                 return true;
             }
             apply(bar);
+            View selected = selectedTab(bar);
+            if (selected != lastSelected.get()) {
+                lastSelected = new WeakReference<>(selected);
+                bar.invalidate();
+            }
             return true;
         }
+
+        private WeakReference<View> lastSelected = new WeakReference<>(null);
 
         static void apply(View bar) {
             Drawable background = bar.getBackground();
@@ -345,7 +633,7 @@ public final class PrismUi {
                 if (!enabled) {
                     bar.setBackground(new ColorDrawable(glass.baseColor));
                 } else if (glass.builtFor != GlassBarDrawable.version) {
-                    bar.setBackground(new GlassBarDrawable(bar.getContext(), glass.baseColor));
+                    bar.setBackground(new GlassBarDrawable(bar, glass.baseColor));
                 }
                 return;
             }
@@ -362,89 +650,123 @@ public final class PrismUi {
                 }
             }
             bar.setTag(TAG_SCANNER, base);
-            bar.setBackground(new GlassBarDrawable(bar.getContext(), base));
+            bar.setBackground(new GlassBarDrawable(bar, base));
         }
     }
 
     /**
-     * Liquid glass: translucent tint of TikTok's own bar color (so icon contrast is kept),
-     * a sheen on the upper half, a glowing theme rim and rounded top corners.
+     * Liquid glass pill: the bar keeps TikTok's own color around it, the tabs sit on a floating
+     * frosted capsule with a sheen, a theme-colored rim and a glowing bubble behind the open tab.
      */
     static final class GlassBarDrawable extends Drawable {
         static int version;
 
         final int baseColor;
         final int builtFor;
-        private final float radius;
-        private final float rimWidth;
+        private final WeakReference<View> hostRef;
+        private final float density;
         private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint sheen = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path path = new Path();
-        private final RectF rect = new RectF();
+        private final Paint bubble = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint shadow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF pill = new RectF();
+        private final RectF tab = new RectF();
+        private final int[] hostLocation = new int[2];
+        private final int[] tabLocation = new int[2];
 
-        GlassBarDrawable(Context context, int baseColor) {
+        GlassBarDrawable(View host, int baseColor) {
             this.baseColor = baseColor;
             this.builtFor = version;
-            float density = context.getResources().getDisplayMetrics().density;
-            radius = 22 * density;
-            rimWidth = Math.max(1f, 1.2f * density);
+            this.hostRef = new WeakReference<>(host);
+            density = host.getResources().getDisplayMetrics().density;
             rim.setStyle(Paint.Style.STROKE);
-            rim.setStrokeWidth(rimWidth);
+            rim.setStrokeWidth(Math.max(1f, 1.1f * density));
         }
 
-        private static boolean isLight(int color) {
+        static boolean isLight(int color) {
             double luminance = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255;
             return luminance > 0.6;
         }
 
         @Override
         public void draw(@NonNull Canvas canvas) {
-            PrismTheme theme = PrismTheme.current();
-            rect.set(getBounds());
-            if (rect.isEmpty()) {
+            android.graphics.Rect bounds = getBounds();
+            if (bounds.isEmpty()) {
                 return;
             }
-            float baseAlpha = Color.alpha(baseColor) / 255f;
-            boolean light = isLight(baseColor);
+            PrismTheme theme = PrismTheme.current();
+            View host = hostRef.get();
             int opaqueBase = Color.rgb(Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
-            int tinted = PrismTheme.blend(opaqueBase, theme.accent, light ? 0.05f : 0.10f);
+            boolean light = isLight(opaqueBase);
 
-            path.reset();
-            path.addRoundRect(rect, new float[]{radius, radius, radius, radius, 0, 0, 0, 0}, Path.Direction.CW);
+            // Around the pill: TikTok's own bar color, so nothing behind leaks through.
+            fill.setShader(null);
+            fill.setColor(opaqueBase);
+            canvas.drawRect(bounds, fill);
 
-            // Base frosted layer.
-            fill.setShader(new LinearGradient(0, rect.top, 0, rect.bottom,
-                    PrismTheme.withAlpha(tinted, Math.min(baseAlpha, light ? 0.80f : 0.74f)),
-                    PrismTheme.withAlpha(tinted, Math.min(baseAlpha, light ? 0.92f : 0.90f)),
+            // The pill covers the tab area only, not the system navigation inset below it.
+            int bottomInset = host == null ? 0 : host.getPaddingBottom();
+            float side = 10 * density;
+            float vertical = 3 * density;
+            pill.set(bounds.left + side, bounds.top + vertical,
+                    bounds.right - side, bounds.bottom - bottomInset - vertical);
+            if (pill.height() < 24 * density) {
+                pill.set(bounds.left + side, bounds.top + 1, bounds.right - side, bounds.bottom - bottomInset - 1);
+            }
+            float radius = pill.height() / 2f;
+
+            // Soft drop shadow lifts the pill off the bar.
+            shadow.setColor(Color.argb(light ? 34 : 120, 0, 0, 0));
+            canvas.drawRoundRect(pill.left, pill.top + 2 * density, pill.right, pill.bottom + 2 * density,
+                    radius, radius, shadow);
+
+            int glass = PrismTheme.blend(light ? PrismTheme.blend(opaqueBase, Color.BLACK, 0.05f)
+                    : PrismTheme.blend(opaqueBase, Color.WHITE, 0.11f), theme.accent, light ? 0.06f : 0.12f);
+            fill.setShader(new LinearGradient(0, pill.top, 0, pill.bottom,
+                    PrismTheme.blend(glass, Color.WHITE, light ? 0.30f : 0.06f), glass, Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(pill, radius, radius, fill);
+
+            drawSelectedBubble(canvas, host, theme, light, radius);
+
+            sheen.setShader(new LinearGradient(0, pill.top, 0, pill.top + pill.height() * 0.55f,
+                    Color.argb(light ? 110 : 40, 255, 255, 255), Color.argb(0, 255, 255, 255),
                     Shader.TileMode.CLAMP));
-            canvas.drawPath(path, fill);
+            canvas.drawRoundRect(pill, radius, radius, sheen);
 
-            // Sheen: light caught on the top edge of the glass.
-            sheen.setShader(new LinearGradient(0, rect.top, 0, rect.top + rect.height() * 0.6f,
-                    Color.argb(light ? 120 : 46, 255, 255, 255), Color.argb(0, 255, 255, 255),
-                    Shader.TileMode.CLAMP));
-            canvas.drawPath(path, sheen);
-
-            // Glowing rim in the theme colors, fading out at the sides.
-            float inset = rimWidth / 2f;
-            rect.inset(inset, inset);
-            path.reset();
-            path.addRoundRect(rect, new float[]{radius, radius, radius, radius, 0, 0, 0, 0}, Path.Direction.CW);
-            rim.setShader(new LinearGradient(rect.left, 0, rect.right, 0,
+            rim.setShader(new LinearGradient(pill.left, pill.top, pill.right, pill.bottom,
                     new int[]{
-                            PrismTheme.withAlpha(theme.accent, 0.0f),
-                            PrismTheme.withAlpha(theme.accent, 0.85f),
-                            PrismTheme.withAlpha(Color.WHITE, light ? 0.9f : 0.55f),
-                            PrismTheme.withAlpha(theme.accent2, 0.85f),
-                            PrismTheme.withAlpha(theme.accent2, 0.0f)
+                            PrismTheme.withAlpha(theme.accent, 0.9f),
+                            PrismTheme.withAlpha(Color.WHITE, light ? 0.85f : 0.35f),
+                            PrismTheme.withAlpha(theme.accent2, 0.9f)
                     },
-                    new float[]{0f, 0.2f, 0.5f, 0.8f, 1f},
+                    new float[]{0f, 0.5f, 1f},
                     Shader.TileMode.CLAMP));
-            canvas.save();
-            canvas.clipRect(rect.left - inset, rect.top - inset, rect.right + inset, rect.top + radius * 1.2f);
-            canvas.drawPath(path, rim);
-            canvas.restore();
+            float inset = rim.getStrokeWidth() / 2f;
+            pill.inset(inset, inset);
+            canvas.drawRoundRect(pill, radius - inset, radius - inset, rim);
+        }
+
+        private void drawSelectedBubble(Canvas canvas, @Nullable View host, PrismTheme theme,
+                                        boolean light, float radius) {
+            View selected = host == null ? null : selectedTab(host);
+            if (selected == null) {
+                return;
+            }
+            host.getLocationOnScreen(hostLocation);
+            selected.getLocationOnScreen(tabLocation);
+            float left = tabLocation[0] - hostLocation[0];
+            float center = left + selected.getWidth() / 2f;
+            float half = Math.min(selected.getWidth() / 2f - 2 * density, 38 * density);
+            tab.set(center - half, pill.top + 3 * density, center + half, pill.bottom - 3 * density);
+            tab.left = Math.max(tab.left, pill.left + 3 * density);
+            tab.right = Math.min(tab.right, pill.right - 3 * density);
+            float tabRadius = Math.min(radius, tab.height() / 2f);
+            bubble.setShader(new LinearGradient(tab.left, tab.top, tab.right, tab.bottom,
+                    PrismTheme.withAlpha(theme.accent, light ? 0.20f : 0.34f),
+                    PrismTheme.withAlpha(theme.accent2, light ? 0.16f : 0.26f),
+                    Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(tab, tabRadius, tabRadius, bubble);
         }
 
         @Override
@@ -461,5 +783,61 @@ public final class PrismUi {
         public int getOpacity() {
             return PixelFormat.TRANSLUCENT;
         }
+    }
+
+    /** The tab whose view (or a child of it) is selected, found below the bar's tab row. */
+    @Nullable
+    static View selectedTab(View bar) {
+        ViewGroup row = tabRow(bar);
+        if (row == null) {
+            return null;
+        }
+        for (int i = 0; i < row.getChildCount(); i++) {
+            View child = row.getChildAt(i);
+            if (child.getVisibility() == View.VISIBLE && isSelectedDeep(child, 3)) {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private static ViewGroup tabRow(View view) {
+        if (!(view instanceof ViewGroup)) {
+            return null;
+        }
+        ViewGroup group = (ViewGroup) view;
+        int visible = 0;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            if (group.getChildAt(i).getVisibility() == View.VISIBLE) {
+                visible++;
+            }
+        }
+        if (visible >= 4 && visible <= 6) {
+            return group;
+        }
+        for (int i = 0; i < group.getChildCount(); i++) {
+            ViewGroup found = tabRow(group.getChildAt(i));
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isSelectedDeep(View view, int depth) {
+        if (view.isSelected()) {
+            return true;
+        }
+        if (depth == 0 || !(view instanceof ViewGroup)) {
+            return false;
+        }
+        ViewGroup group = (ViewGroup) view;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            if (isSelectedDeep(group.getChildAt(i), depth - 1)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

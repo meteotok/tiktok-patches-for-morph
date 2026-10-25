@@ -60,8 +60,14 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
         addPreference(new TogglePreference(
                 context,
                 "Стеклянная нижняя панель",
-                "Полупрозрачная панель вкладок с бликом и подсветкой в цветах темы.",
+                "Вкладки на парящей стеклянной пилюле, открытая вкладка подсвечена цветом темы.",
                 Settings.PRISM_GLASS_NAV
+        ));
+        addPreference(new TogglePreference(
+                context,
+                "Стеклянные верхние вкладки",
+                "«Подписки» и «Рекомендации» в стеклянной капсуле с подсветкой открытой вкладки.",
+                Settings.PRISM_GLASS_TOP
         ));
 
         addPreference(group(context, "Бейджи"));
