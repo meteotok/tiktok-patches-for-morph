@@ -413,6 +413,16 @@ val feedFilterPatch = bytecodePatch(
             "invoke-static {}, Lapp/morphe/extension/tiktok/settings/SettingsStatus;->enableFeedFilter()V",
         )
 
+        // Links open through this router before anything else runs, so the linked video is
+        // recorded here and the like filter lets it through.
+        mutableClassDefByOrNull("Lcom/ss/android/ugc/aweme/deeplink/AppLinkHandlerV2;")
+            ?.methods
+            ?.firstOrNull { it.name == "onCreate" && it.parameterTypes == listOf("Landroid/os/Bundle;") }
+            ?.addInstruction(
+                0,
+                "invoke-static/range { p0 .. p0 }, Lapp/morphe/extension/tiktok/feedfilter/LinkOpenExemption;->onActivity(Landroid/app/Activity;)V",
+            )
+
         DiscoverBannerResponseFingerprint.method.filterResponseAfterCast(
             "Lcom/ss/android/ugc/aweme/discover/model/BannerList;",
             "filterDiscoverBanners",

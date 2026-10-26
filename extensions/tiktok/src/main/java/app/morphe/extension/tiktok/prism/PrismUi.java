@@ -90,6 +90,13 @@ public final class PrismUi {
     private static final class Callbacks implements Application.ActivityLifecycleCallbacks {
         @Override
         public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+            try {
+                if (savedInstanceState == null) {
+                    app.morphe.extension.tiktok.feedfilter.LinkOpenExemption.onIntent(activity.getIntent());
+                }
+            } catch (Throwable ignored) {
+                // Only an exemption hint.
+            }
         }
 
         @Override
@@ -210,7 +217,21 @@ public final class PrismUi {
                 bottom = Math.max(bottom, rootLocation[1] + root.getHeight() - barLocation[1]);
             }
             layer.setInsets(top, bottom);
+            layer.setVariant(screenVariant(root));
             layer.invalidateSelf();
+        }
+
+        /** Bottom tab index on the main screen, else a stable number per screen class. */
+        private int screenVariant(View root) {
+            View bar = barRef.get();
+            if (isMain && bar != null && bar.isShown()) {
+                View selected = selectedTab(bar);
+                if (selected != null && selected.getParent() instanceof ViewGroup) {
+                    return ((ViewGroup) selected.getParent()).indexOfChild(selected);
+                }
+            }
+            Activity activity = activityRef.get();
+            return activity == null ? 0 : (activity.getClass().getName().hashCode() & 0x7fffffff) % 4;
         }
 
         // endregion

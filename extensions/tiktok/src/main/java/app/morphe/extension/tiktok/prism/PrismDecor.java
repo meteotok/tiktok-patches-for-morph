@@ -39,6 +39,8 @@ public final class PrismDecor extends Drawable implements Runnable {
     private int bottomInset;
     private int topInset;
     private boolean frameQueued;
+    /** Which arrangement this screen gets, so every page looks a little different. */
+    private int variant;
 
     private PrismDecor(View host) {
         hostRef = new WeakReference<>(host);
@@ -69,6 +71,23 @@ public final class PrismDecor extends Drawable implements Runnable {
     }
 
     private static final int TAG = 0x4D455432;
+
+    void setVariant(int variant) {
+        if (variant != this.variant) {
+            this.variant = variant;
+            invalidateSelf();
+        }
+    }
+
+    /**
+     * Free spots in the status bar strip, as fractions of the width: right of the clock and
+     * date, either side of the camera cutout, left of the system icons.
+     */
+    private static final float[] SLOTS = {0.42f, 0.585f, 0.645f, 0.705f};
+
+    private float slot(int index) {
+        return SLOTS[Math.floorMod(index + variant, SLOTS.length)];
+    }
 
     /** Space taken by the bottom bar (and system navigation), so ground decorations sit on it. */
     void setInsets(int top, int bottom) {
@@ -109,7 +128,7 @@ public final class PrismDecor extends Drawable implements Runnable {
         float ground = Math.max(topInset, 24 * dp);
         boolean animated;
         canvas.save();
-        canvas.clipRect(0, 0, w, ground * 1.25f);
+        canvas.clipRect(0, 0, w, ground * 1.35f);
         try {
             switch (PrismTheme.current()) {
                 case HALLOWEEN:
@@ -164,32 +183,75 @@ public final class PrismDecor extends Drawable implements Runnable {
     // region Halloween
 
     private boolean drawHalloween(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(142, 45, 226));
+        bandFog(canvas, w, band, Color.rgb(160, 60, 255));
 
-        cobweb(canvas, 0, 0, band * 1.2f, 1);
-        cobweb(canvas, w, 0, band * 1.1f, -1);
+        cobweb(canvas, 0, 0, band * 1.45f, 1);
+        cobweb(canvas, w, 0, band * 1.3f, -1);
 
-        // A tiny spider bobbing on its thread from the right web.
+        float flicker = 0.75f + 0.25f * (float) Math.abs(Math.sin(t * 6.3) * Math.sin(t * 2.1));
+        float flap = (float) Math.sin(t * 9);
+        float bob = (float) Math.sin(t * 1.4) * band * 0.05f;
+        switch (Math.floorMod(variant, 4)) {
+            case 0:
+                bat(canvas, w * slot(0) + (float) Math.sin(t * 0.6) * band * 0.2f, band * 0.45f, band * 0.22f, flap);
+                pumpkin(canvas, w * slot(1), band * 0.58f, band * 0.38f, flicker);
+                candyBucket(canvas, w * slot(2) + band * 0.2f, band * 0.66f, band * 0.32f);
+                break;
+            case 1:
+                candyBucket(canvas, w * slot(0), band * 0.66f, band * 0.32f);
+                ghost(canvas, w * slot(2), band * 0.55f + bob, band * 0.34f);
+                pumpkin(canvas, w * slot(3), band * 0.58f, band * 0.36f, flicker);
+                break;
+            case 2:
+                pumpkin(canvas, w * slot(1), band * 0.62f, band * 0.3f, flicker);
+                pumpkin(canvas, w * slot(2), band * 0.56f, band * 0.4f, flicker);
+                bat(canvas, w * slot(3), band * 0.4f + bob, band * 0.2f, flap);
+                break;
+            default:
+                ghost(canvas, w * slot(0), band * 0.55f + bob, band * 0.32f);
+                pumpkin(canvas, w * slot(1), band * 0.58f, band * 0.38f, flicker);
+                bat(canvas, w * slot(2) + (float) Math.cos(t * 0.5) * band * 0.2f, band * 0.42f, band * 0.2f, -flap);
+                break;
+        }
+
+        // The little spider always hangs from the right web.
         float swing = (float) Math.sin(t * 1.6) * 6f;
-        float x = w - band * 0.62f;
-        float length = band * 0.45f + (float) Math.sin(t * 0.7) * band * 0.06f;
+        float x = w - band * 0.7f;
+        float length = band * 0.5f + (float) Math.sin(t * 0.7) * band * 0.06f;
         canvas.save();
         canvas.rotate(swing, x, 0);
         stroke.setShader(null);
-        stroke.setColor(Color.argb(150, 255, 255, 255));
-        stroke.setStrokeWidth(0.8f * dp);
+        stroke.setColor(Color.argb(190, 255, 255, 255));
+        stroke.setStrokeWidth(0.9f * dp);
         canvas.drawLine(x, 0, x, length, stroke);
-        spider(canvas, x, length + band * 0.16f, band / (64 * dp));
+        spider(canvas, x, length + band * 0.18f, band / (52 * dp));
         canvas.restore();
-
-        // A bat flitting next to the pumpkins, clear of the clock and the camera cutout.
-        float flap = (float) Math.sin(t * 9);
-        bat(canvas, w * 0.585f + (float) Math.sin(t * 0.6) * band * 0.25f, band * 0.42f, band * 0.17f, flap);
-
-        float flicker = 0.75f + 0.25f * (float) Math.abs(Math.sin(t * 6.3) * Math.sin(t * 2.1));
-        pumpkin(canvas, w * 0.645f, band * 0.56f, band * 0.3f, flicker);
-        candyBucket(canvas, w * 0.705f, band * 0.62f, band * 0.26f);
         return true;
+    }
+
+    private void ghost(Canvas canvas, float x, float y, float r) {
+        glow.setShader(new RadialGradient(x, y, r * 2f, Color.argb(110, 200, 210, 255),
+                Color.argb(0, 200, 210, 255), Shader.TileMode.CLAMP));
+        canvas.drawCircle(x, y, r * 2f, glow);
+        path.reset();
+        path.moveTo(x - r, y + r);
+        path.lineTo(x - r, y - r * 0.1f);
+        path.cubicTo(x - r, y - r * 1.4f, x + r, y - r * 1.4f, x + r, y - r * 0.1f);
+        path.lineTo(x + r, y + r);
+        for (int i = 0; i < 4; i++) {
+            float x0 = x + r - i * r / 2f;
+            path.quadTo(x0 - r / 8f, y + r * 0.7f, x0 - r / 4f, y + r);
+            path.quadTo(x0 - r * 3 / 8f, y + r * 1.3f, x0 - r / 2f, y + r);
+        }
+        path.close();
+        fill.setShader(new LinearGradient(x, y - r, x, y + r, Color.WHITE, Color.rgb(214, 214, 255),
+                Shader.TileMode.CLAMP));
+        canvas.drawPath(path, fill);
+        fill.setShader(null);
+        fill.setColor(Color.rgb(40, 24, 70));
+        canvas.drawOval(x - r * 0.45f, y - r * 0.45f, x - r * 0.15f, y, fill);
+        canvas.drawOval(x + r * 0.15f, y - r * 0.45f, x + r * 0.45f, y, fill);
+        canvas.drawOval(x - r * 0.14f, y + r * 0.15f, x + r * 0.14f, y + r * 0.5f, fill);
     }
 
     private void cobweb(Canvas canvas, float cx, float cy, float radius, int direction) {
@@ -402,14 +464,15 @@ public final class PrismDecor extends Drawable implements Runnable {
     // region other themes
 
     private boolean drawFemboy(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(255, 111, 181));
-        bow(canvas, w * 0.6f, band * 0.5f, band * 0.22f, Color.rgb(255, 111, 181));
+        bandFog(canvas, w, band, Color.rgb(255, 92, 170));
+        bow(canvas, w * slot(1), band * 0.5f, band * 0.3f, Color.rgb(255, 92, 170));
+        bow(canvas, w * slot(3), band * 0.55f, band * 0.22f, Color.rgb(120, 190, 255));
         for (int i = 0; i < 3; i++) {
             float phase = ((t * 0.25f) + i / 3f) % 1f;
-            float x = w * (0.65f + i * 0.035f);
-            float y = band * (0.9f - phase * 0.7f);
-            heart(canvas, x, y, band * 0.11f, PrismTheme.withAlpha(
-                    i == 1 ? Color.rgb(126, 200, 255) : Color.rgb(255, 111, 181),
+            float x = w * slot(2) + (i - 1) * band * 0.4f;
+            float y = band * (1.05f - phase * 0.85f);
+            heart(canvas, x, y, band * 0.14f, PrismTheme.withAlpha(
+                    i == 1 ? Color.rgb(120, 190, 255) : Color.rgb(255, 92, 170),
                     (float) Math.sin(Math.PI * phase)));
         }
         sparkles(canvas, w, band, t, Color.WHITE);
@@ -417,68 +480,91 @@ public final class PrismDecor extends Drawable implements Runnable {
     }
 
     private boolean drawNeon(Canvas canvas, float w, float band, float t) {
+        bandFog(canvas, w, band, Color.rgb(255, 0, 229));
         float pulse = 0.6f + 0.4f * (float) Math.sin(t * 2.4);
-        // A glowing seam under the status bar, green fading into magenta.
         for (int layer = 2; layer >= 0; layer--) {
-            stroke.setStrokeWidth((1.2f + layer * 2.5f) * dp);
+            stroke.setStrokeWidth((1.6f + layer * 3f) * dp);
             stroke.setShader(new LinearGradient(0, 0, w, 0,
-                    PrismTheme.withAlpha(Color.rgb(57, 255, 20), layer == 0 ? 0.9f : 0.18f * pulse),
-                    PrismTheme.withAlpha(Color.rgb(255, 0, 229), layer == 0 ? 0.9f : 0.18f * pulse),
+                    PrismTheme.withAlpha(Color.rgb(57, 255, 20), layer == 0 ? 1f : 0.25f * pulse),
+                    PrismTheme.withAlpha(Color.rgb(255, 0, 229), layer == 0 ? 1f : 0.25f * pulse),
                     Shader.TileMode.CLAMP));
             canvas.drawLine(0, band - 1.5f * dp, w, band - 1.5f * dp, stroke);
         }
         stroke.setShader(null);
+        // A neon bolt that moves to a different spot on every screen.
+        float x = w * slot(1);
+        path.reset();
+        path.moveTo(x + band * 0.1f, band * 0.12f);
+        path.lineTo(x - band * 0.18f, band * 0.55f);
+        path.lineTo(x + band * 0.02f, band * 0.55f);
+        path.lineTo(x - band * 0.08f, band * 0.92f);
+        path.lineTo(x + band * 0.22f, band * 0.42f);
+        path.lineTo(x + band * 0.02f, band * 0.42f);
+        path.close();
+        glow.setShader(new RadialGradient(x, band * 0.5f, band * 0.7f,
+                PrismTheme.withAlpha(Color.rgb(57, 255, 20), 0.45f * pulse), Color.TRANSPARENT, Shader.TileMode.CLAMP));
+        canvas.drawCircle(x, band * 0.5f, band * 0.7f, glow);
+        fill.setShader(null);
+        fill.setColor(Color.rgb(200, 255, 180));
+        canvas.drawPath(path, fill);
         sparkles(canvas, w, band, t, Color.rgb(57, 255, 20));
         return true;
     }
 
     private boolean drawOcean(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(0, 194, 255));
-        for (int i = 0; i < 6; i++) {
-            float phase = ((t * (0.18f + (i % 3) * 0.05f)) + i / 6f) % 1f;
-            float x = w * (0.56f + (i % 3) * 0.06f) + (float) Math.sin(t * 2 + i) * band * 0.08f;
-            float y = band * (1.05f - phase);
-            float r = band * (0.06f + (i % 3) * 0.025f);
+        bandFog(canvas, w, band, Color.rgb(0, 170, 255));
+        for (int i = 0; i < 8; i++) {
+            float phase = ((t * (0.18f + (i % 3) * 0.05f)) + i / 8f) % 1f;
+            float x = w * slot(i % 3 + 1) + (float) Math.sin(t * 2 + i) * band * 0.15f;
+            float y = band * (1.2f - phase * 1.1f);
+            float r = band * (0.08f + (i % 3) * 0.035f);
+            int alpha = (int) (230 * (1 - phase));
             stroke.setShader(null);
-            stroke.setColor(Color.argb((int) (200 * (1 - phase)), 200, 245, 255));
-            stroke.setStrokeWidth(1f * dp);
+            stroke.setColor(Color.argb(alpha, 210, 250, 255));
+            stroke.setStrokeWidth(1.3f * dp);
             canvas.drawCircle(x, y, r, stroke);
+            fill.setShader(null);
+            fill.setColor(Color.argb(alpha, 255, 255, 255));
+            canvas.drawCircle(x - r * 0.35f, y - r * 0.35f, r * 0.28f, fill);
         }
         return true;
     }
 
     private boolean drawGold(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(255, 196, 0));
-        crown(canvas, w * 0.64f, band * 0.55f, band * 0.26f);
-        sparkles(canvas, w, band, t, Color.rgb(255, 214, 90));
+        bandFog(canvas, w, band, Color.rgb(255, 190, 0));
+        glow.setShader(new RadialGradient(w * slot(1), band * 0.55f, band * 0.8f,
+                Color.argb(120, 255, 210, 80), Color.TRANSPARENT, Shader.TileMode.CLAMP));
+        canvas.drawCircle(w * slot(1), band * 0.55f, band * 0.8f, glow);
+        crown(canvas, w * slot(1), band * 0.58f, band * 0.36f);
+        sparkles(canvas, w, band, t, Color.rgb(255, 224, 120));
         return true;
     }
 
     private boolean drawSakura(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(236, 72, 153));
-        blossom(canvas, w * 0.6f, band * 0.5f, band * 0.22f);
-        blossom(canvas, w * 0.68f, band * 0.4f, band * 0.16f);
-        for (int i = 0; i < 4; i++) {
-            float phase = ((t * 0.2f) + i / 4f) % 1f;
-            float x = w * (0.56f + i * 0.045f) + (float) Math.sin(t * 1.1 + i * 1.7) * band * 0.15f;
-            petal(canvas, x, phase * band * 1.15f, band * 0.08f, t * 90 + i * 40,
-                    (int) (230 * Math.sin(Math.PI * phase)));
+        bandFog(canvas, w, band, Color.rgb(255, 92, 160));
+        blossom(canvas, w * slot(1), band * 0.5f, band * 0.3f);
+        blossom(canvas, w * slot(2), band * 0.42f, band * 0.22f);
+        for (int i = 0; i < 5; i++) {
+            float phase = ((t * 0.2f) + i / 5f) % 1f;
+            float x = w * slot(i % 4) + (float) Math.sin(t * 1.1 + i * 1.7) * band * 0.25f;
+            petal(canvas, x, phase * band * 1.25f, band * 0.11f, t * 90 + i * 40,
+                    (int) (240 * Math.sin(Math.PI * phase)));
         }
         return true;
     }
 
     private boolean drawPrism(Canvas canvas, float w, float band, float t) {
         bandFog(canvas, w, band, Color.rgb(139, 92, 246));
-        float px = w * 0.66f;
-        float py = band * 0.5f;
-        float s = band * 0.26f;
+        float px = w * slot(2);
+        float py = band * 0.52f;
+        float s = band * 0.34f;
         int[] rainbow = {Color.rgb(255, 64, 64), Color.rgb(255, 170, 0), Color.rgb(255, 235, 59),
                 Color.rgb(76, 217, 100), Color.rgb(34, 211, 238), Color.rgb(139, 92, 246)};
         stroke.setShader(null);
-        stroke.setStrokeWidth(1.4f * dp);
+        stroke.setStrokeWidth(1.8f * dp);
         for (int i = 0; i < rainbow.length; i++) {
-            stroke.setColor(PrismTheme.withAlpha(rainbow[i], 0.75f));
-            canvas.drawLine(px - s * 0.3f, py + s * 0.2f, px - band * 1.6f, py - s + i * s * 0.4f, stroke);
+            stroke.setColor(PrismTheme.withAlpha(rainbow[i], 0.9f));
+            canvas.drawLine(px - s * 0.3f, py + s * 0.2f, px - band * 1.8f, py - s + i * s * 0.42f, stroke);
         }
         path.reset();
         path.moveTo(px, py - s);
@@ -486,7 +572,7 @@ public final class PrismDecor extends Drawable implements Runnable {
         path.lineTo(px - s, py + s * 0.8f);
         path.close();
         fill.setShader(new LinearGradient(px - s, py - s, px + s, py + s,
-                Color.argb(220, 255, 255, 255), Color.argb(110, 180, 200, 255), Shader.TileMode.CLAMP));
+                Color.argb(240, 255, 255, 255), Color.argb(130, 180, 200, 255), Shader.TileMode.CLAMP));
         canvas.drawPath(path, fill);
         fill.setShader(null);
         sparkles(canvas, w, band, t, Color.WHITE);
@@ -500,20 +586,21 @@ public final class PrismDecor extends Drawable implements Runnable {
     /** Theme-colored tint of the status bar strip, fading out just below it. */
     private void bandFog(Canvas canvas, float w, float band, int color) {
         fill.setShader(new LinearGradient(0, 0, 0, band * 1.25f,
-                PrismTheme.withAlpha(color, 0.45f), PrismTheme.withAlpha(color, 0f), Shader.TileMode.CLAMP));
+                PrismTheme.withAlpha(color, 0.62f), PrismTheme.withAlpha(color, 0f), Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, band * 1.25f, fill);
         fill.setShader(null);
     }
 
     /** Twinkles in the free middle-right part of the status bar. */
     private void sparkles(Canvas canvas, float w, float band, float t, int color) {
-        float[][] spots = {{0.57f, 0.3f}, {0.62f, 0.75f}, {0.69f, 0.35f}, {0.73f, 0.8f}};
+        float[][] spots = {{slot(0) + 0.02f, 0.3f}, {slot(1) - 0.02f, 0.78f}, {slot(2) + 0.025f, 0.32f},
+                {slot(3) + 0.02f, 0.82f}};
         for (int i = 0; i < spots.length; i++) {
             float twinkle = (float) Math.max(0, Math.sin(t * 1.8 + i * 1.3));
             if (twinkle <= 0.05f) {
                 continue;
             }
-            star(canvas, spots[i][0] * w, spots[i][1] * band, band * (0.06f + 0.08f * twinkle),
+            star(canvas, spots[i][0] * w, spots[i][1] * band, band * (0.08f + 0.1f * twinkle),
                     PrismTheme.withAlpha(color, 0.9f * twinkle));
         }
     }
