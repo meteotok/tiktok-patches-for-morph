@@ -1,5 +1,6 @@
 package app.morphe.extension.tiktok.prism;
 
+import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
@@ -18,31 +19,35 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
 
 import app.morphe.extension.tiktok.settings.Settings;
 
 /**
- * Theme decorations drawn over every TikTok screen: cobwebs, spiders and pumpkins for Halloween,
- * hearts and bows for Femboy, petals for Sakura and so on. The layer never takes touches.
+ * Theme decorations: pumpkins, a spider on its web and ghosts for Halloween, bows and hearts for
+ * Femboy, petals for Sakura and so on. The layer never takes touches.
  * <p>
- * Small things sit in the status bar strip; bigger ones go down the left and right edges, but
- * only into spots where the screen scan found nothing: no text, inputs, icons, buttons or
- * video. The spider is the one exception, hanging on its thread over the top of the video.
+ * Decorations live only in the four corners of the area between the status bar and the bottom
+ * bar, always at the same spots. A corner where the screen scan finds text, an input, an icon or
+ * a button fades its decoration out instead of moving it somewhere else.
  */
 public final class PrismDecor extends Drawable implements Runnable {
     private static final int FRAME_MS = 40;
+    private static final int TAG = 0x4D455432;
+
+    private static final int TOP_LEFT = 0;
+    private static final int TOP_RIGHT = 1;
+    private static final int BOTTOM_LEFT = 2;
+    private static final int BOTTOM_RIGHT = 3;
 
     private final WeakReference<View> hostRef;
     private final float dp;
+    private final float statusBar;
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF oval = new RectF();
+    private final RectF area = new RectF();
     private int bottomInset;
     private int topInset;
     private boolean frameQueued;
@@ -50,18 +55,15 @@ public final class PrismDecor extends Drawable implements Runnable {
     private int variant;
     /** Rectangles (left, top, right, bottom) of things that must stay visible. */
     private float[] blocked = new float[0];
-    /** Rectangles of the player and video covers. */
-    private float[] video = new float[0];
-    /** Centers (x, y) of the free edge spots picked for this screen. */
-    private float[] spots = new float[0];
-    private float spiderLength;
-    private boolean spotsDirty = true;
-    private float spotsWidth;
-    private float spotsHeight;
+    /** How visible each corner's decoration is right now, fading toward free or taken. */
+    private final float[] cornerAlpha = new float[4];
 
     private PrismDecor(View host) {
         hostRef = new WeakReference<>(host);
-        dp = host.getResources().getDisplayMetrics().density;
+        Resources resources = host.getResources();
+        dp = resources.getDisplayMetrics().density;
+        int id = resources.getIdentifier("status_bar_height", "dimen", "android");
+        statusBar = id != 0 ? resources.getDimensionPixelSize(id) : 28 * dp;
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         stroke.setStrokeJoin(Paint.Join.ROUND);
@@ -87,118 +89,25 @@ public final class PrismDecor extends Drawable implements Runnable {
         return layer;
     }
 
-    private static final int TAG = 0x4D455432;
-
     void setVariant(int variant) {
         if (variant != this.variant) {
             this.variant = variant;
-            spotsDirty = true;
             invalidateSelf();
         }
     }
 
-    void setObstacles(float[] blocked, float[] video) {
-        if (!java.util.Arrays.equals(blocked, this.blocked) || !java.util.Arrays.equals(video, this.video)) {
-            this.blocked = blocked;
-            this.video = video;
-            spotsDirty = true;
-            invalidateSelf();
-        }
-    }
-
-    /** Half the size of an edge decoration, including how far it moves. */
-    private float spotRadius() {
-        return 27 * dp;
-    }
-
-    private boolean isFree(float left, float top, float right, float bottom, boolean overVideo) {
-        float pad = 6 * dp;
-        if (hits(blocked, left - pad, top - pad, right + pad, bottom + pad)) {
-            return false;
-        }
-        return overVideo || !hits(video, left - pad, top - pad, right + pad, bottom + pad);
-    }
-
-    private static boolean hits(float[] rects, float left, float top, float right, float bottom) {
-        for (int i = 0; i + 3 < rects.length; i += 4) {
-            if (left < rects[i + 2] && rects[i] < right && top < rects[i + 3] && rects[i + 1] < bottom) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Picks up to four free spots down the screen edges, different on every screen. */
-    private void computeSpots(float w, float h, float band) {
-        spotsDirty = false;
-        spotsWidth = w;
-        spotsHeight = h;
-        float r = spotRadius();
-        float top = band * 1.4f + r;
-        float bottom = h - bottomInset - r - 8 * dp;
-        List<float[]> free = new ArrayList<>();
-        float[] xs = {r + 4 * dp, w - r - 4 * dp};
-        for (float y = top; y <= bottom; y += r * 0.8f) {
-            for (float x : xs) {
-                if (isFree(x - r, y - r, x + r, y + r, false)) {
-                    free.add(new float[]{x, y});
-                }
-            }
-        }
-        Collections.shuffle(free, new Random(variant * 7919L + 17));
-        List<float[]> picked = new ArrayList<>();
-        for (float[] spot : free) {
-            boolean apart = true;
-            for (float[] other : picked) {
-                if (Math.hypot(spot[0] - other[0], spot[1] - other[1]) < r * 4.5f) {
-                    apart = false;
-                    break;
-                }
-            }
-            if (apart) {
-                picked.add(spot);
-                if (picked.size() == 4) {
-                    break;
-                }
-            }
-        }
-        spots = new float[picked.size() * 2];
-        for (int i = 0; i < picked.size(); i++) {
-            spots[i * 2] = picked.get(i)[0];
-            spots[i * 2 + 1] = picked.get(i)[1];
-        }
-
-        // The spider drops from the right web as far as the edge column stays empty,
-        // down to a bit over a third of the screen.
-        float x = spiderX(w);
-        float half = 17 * dp;
-        float y = band;
-        float limit = Math.min(h * 0.38f, bottom);
-        while (y + 4 * dp < limit && isFree(x - half, y, x + half, y + half * 2 + 4 * dp, true)) {
-            y += 4 * dp;
-        }
-        spiderLength = y;
-    }
-
-    private float spiderX(float w) {
-        return w - 24 * dp;
-    }
-
-    /**
-     * Free spots in the status bar strip, as fractions of the width: right of the clock and
-     * date, either side of the camera cutout, left of the system icons.
-     */
-    private static final float[] SLOTS = {0.42f, 0.585f, 0.645f, 0.705f};
-
-    private float slot(int index) {
-        return SLOTS[Math.floorMod(index + variant, SLOTS.length)];
-    }
-
-    /** Space taken by the bottom bar (and system navigation), so ground decorations sit on it. */
+    /** Space taken by the status bar and by the bottom bar (and system navigation). */
     void setInsets(int top, int bottom) {
         if (top != topInset || bottom != bottomInset) {
             topInset = top;
             bottomInset = bottom;
+            invalidateSelf();
+        }
+    }
+
+    void setObstacles(float[] blocked) {
+        if (!java.util.Arrays.equals(blocked, this.blocked)) {
+            this.blocked = blocked;
             invalidateSelf();
         }
     }
@@ -217,6 +126,39 @@ public final class PrismDecor extends Drawable implements Runnable {
         invalidateSelf();
     }
 
+    /** Half the size of a corner decoration, including how far it moves. */
+    private float radius() {
+        return 24 * dp;
+    }
+
+    /** The space a corner's decoration may use. */
+    private void cornerArea(int corner, float w, float top, float bottom) {
+        float size = radius() * 2;
+        // Top corners sit under TikTok's top bar, bottom corners just above the bottom bar.
+        float y = corner < BOTTOM_LEFT ? top + 62 * dp : bottom - size - 10 * dp;
+        float x = corner % 2 == 0 ? 6 * dp : w - size - 6 * dp;
+        if (corner == TOP_RIGHT && PrismTheme.current() == PrismTheme.HALLOWEEN) {
+            // The spider's web is fixed to the screen edge and its thread goes down from it.
+            area.set(w - size - 14 * dp, y - 8 * dp, w, y + size + 22 * dp);
+        } else {
+            area.set(x, y, x + size, y + size);
+        }
+    }
+
+    private boolean isFree(RectF rect) {
+        float pad = 6 * dp;
+        float left = rect.left - pad;
+        float top = rect.top - pad;
+        float right = rect.right + pad;
+        float bottom = rect.bottom + pad;
+        for (int i = 0; i + 3 < blocked.length; i += 4) {
+            if (left < blocked[i + 2] && blocked[i] < right && top < blocked[i + 3] && blocked[i + 1] < bottom) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public void draw(@NonNull Canvas canvas) {
         if (!enabled()) {
@@ -224,62 +166,45 @@ public final class PrismDecor extends Drawable implements Runnable {
         }
         float w = getBounds().width();
         float h = getBounds().height();
-        if (w <= 0 || h <= 0) {
+        // Never above the status bar's lower edge: the clock, the camera and the icons are there.
+        float top = Math.max(topInset, statusBar);
+        float bottom = h - bottomInset;
+        if (w <= 0 || bottom - top < radius() * 8) {
             return;
         }
         float t = (SystemClock.uptimeMillis() % 600_000L) / 1000f;
-        // Everything stays inside the status bar strip and a hair below it: TikTok has no
-        // other spot that is free on every screen (sheets, search, comments, the player).
-        float ground = Math.max(topInset, 24 * dp);
-        if (spotsDirty || w != spotsWidth || h != spotsHeight) {
-            computeSpots(w, h, ground);
-        }
-        boolean animated;
+        boolean moving = false;
         canvas.save();
-        canvas.clipRect(0, 0, w, ground * 1.35f);
+        canvas.clipRect(0, top, w, bottom);
         try {
-            switch (PrismTheme.current()) {
-                case HALLOWEEN:
-                    animated = drawHalloween(canvas, w, ground, t);
-                    break;
-                case FEMBOY:
-                    animated = drawFemboy(canvas, w, ground, t);
-                    break;
-                case NEON:
-                    animated = drawNeon(canvas, w, ground, t);
-                    break;
-                case OCEAN:
-                    animated = drawOcean(canvas, w, ground, t);
-                    break;
-                case GOLD:
-                    animated = drawGold(canvas, w, ground, t);
-                    break;
-                case SAKURA:
-                    animated = drawSakura(canvas, w, ground, t);
-                    break;
-                case PRISM:
-                    animated = drawPrism(canvas, w, ground, t);
-                    break;
-                default:
-                    animated = false;
+            for (int corner = 0; corner < 4; corner++) {
+                cornerArea(corner, w, top, bottom);
+                float target = isFree(area) ? 1f : 0f;
+                float alpha = cornerAlpha[corner] + (target - cornerAlpha[corner]) * 0.18f;
+                if (Math.abs(alpha - target) < 0.02f) {
+                    alpha = target;
+                }
+                cornerAlpha[corner] = alpha;
+                if (alpha != target) {
+                    moving = true;
+                }
+                if (alpha <= 0f) {
+                    continue;
+                }
+                moving = true;
+                int layer = alpha < 1f
+                        ? canvas.saveLayerAlpha(area.left - radius(), area.top - radius(), area.right + radius(),
+                        area.bottom + radius(), (int) (255 * alpha))
+                        : canvas.save();
+                drawCorner(canvas, corner, w, t);
+                canvas.restoreToCount(layer);
             }
         } catch (Throwable ignored) {
             // Decorations must never break TikTok's drawing.
-            animated = false;
         }
         canvas.restore();
-        try {
-            for (int i = 0; i + 1 < spots.length; i += 2) {
-                drawSpot(canvas, spots[i], spots[i + 1], i / 2 + variant, t);
-            }
-            if (PrismTheme.current() == PrismTheme.HALLOWEEN) {
-                hangingSpider(canvas, w, ground, t);
-            }
-        } catch (Throwable ignored) {
-            // Same as above.
-        }
         View host = hostRef.get();
-        if (animated && !frameQueued && host != null && host.isShown()) {
+        if (moving && !frameQueued && host != null && host.isShown()) {
             frameQueued = true;
             host.postDelayed(this, FRAME_MS);
         }
@@ -298,108 +223,54 @@ public final class PrismDecor extends Drawable implements Runnable {
         return PixelFormat.TRANSLUCENT;
     }
 
-    // region Halloween
-
-    private boolean drawHalloween(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(160, 60, 255));
-
-        cobweb(canvas, 0, 0, band * 1.45f, 1);
-        cobweb(canvas, w, 0, band * 1.3f, -1);
-
-        float flicker = 0.75f + 0.25f * (float) Math.abs(Math.sin(t * 6.3) * Math.sin(t * 2.1));
-        float flap = (float) Math.sin(t * 9);
-        float bob = (float) Math.sin(t * 1.4) * band * 0.05f;
-        switch (Math.floorMod(variant, 4)) {
-            case 0:
-                bat(canvas, w * slot(0) + (float) Math.sin(t * 0.6) * band * 0.2f, band * 0.45f, band * 0.22f, flap);
-                pumpkin(canvas, w * slot(1), band * 0.58f, band * 0.38f, flicker);
-                candyBucket(canvas, w * slot(2) + band * 0.2f, band * 0.66f, band * 0.32f);
-                break;
-            case 1:
-                candyBucket(canvas, w * slot(0), band * 0.66f, band * 0.32f);
-                ghost(canvas, w * slot(2), band * 0.55f + bob, band * 0.34f);
-                pumpkin(canvas, w * slot(3), band * 0.58f, band * 0.36f, flicker);
-                break;
-            case 2:
-                pumpkin(canvas, w * slot(1), band * 0.62f, band * 0.3f, flicker);
-                pumpkin(canvas, w * slot(2), band * 0.56f, band * 0.4f, flicker);
-                bat(canvas, w * slot(3), band * 0.4f + bob, band * 0.2f, flap);
-                break;
-            default:
-                ghost(canvas, w * slot(0), band * 0.55f + bob, band * 0.32f);
-                pumpkin(canvas, w * slot(1), band * 0.58f, band * 0.38f, flicker);
-                bat(canvas, w * slot(2) + (float) Math.cos(t * 0.5) * band * 0.2f, band * 0.42f, band * 0.2f, -flap);
-                break;
-        }
-
-        return true;
-    }
-
-    /**
-     * The spider on its thread from the right web: it slowly climbs up and lets itself down
-     * again, swinging a little, as far down as the edge is empty.
-     */
-    private void hangingSpider(Canvas canvas, float w, float band, float t) {
-        float x = spiderX(w);
-        float shortest = band * 0.9f;
-        float longest = Math.max(shortest, spiderLength);
-        float reach = 0.5f + 0.5f * (float) Math.sin(t * 0.45);
-        float length = shortest + (longest - shortest) * reach;
-        // Keep the sideways sway to a few dp, however long the thread is.
-        float swing = (float) Math.toDegrees(Math.asin(Math.min(1f, 7 * dp / Math.max(length, 1f))))
-                * (float) Math.sin(t * 1.7);
-        canvas.save();
-        canvas.rotate(swing, x, 0);
-        stroke.setShader(null);
-        stroke.setColor(Color.argb(210, 255, 255, 255));
-        stroke.setStrokeWidth(1f * dp);
-        canvas.drawLine(x, 0, x, length, stroke);
-        spider(canvas, x, length + 9 * dp, 0.85f);
-        canvas.restore();
-    }
-
-    /** One decoration at a free edge spot, picked by the theme. */
-    private void drawSpot(Canvas canvas, float x, float y, int index, float t) {
-        float bob = (float) Math.sin(t * 1.3 + index) * 4 * dp;
+    /** One decoration in its corner, which is in {@link #area}. */
+    private void drawCorner(Canvas canvas, int corner, float w, float t) {
+        float x = area.centerX();
+        float y = area.centerY();
+        int index = corner + variant;
+        float bob = (float) Math.sin(t * 1.3 + index) * 3 * dp;
         float flicker = 0.75f + 0.25f * (float) Math.abs(Math.sin(t * 6.3 + index) * Math.sin(t * 2.1));
         float pulse = 0.6f + 0.4f * (float) Math.sin(t * 2.4 + index);
-        int kind = Math.floorMod(index, 4);
         switch (PrismTheme.current()) {
             case HALLOWEEN:
+                if (corner == TOP_RIGHT) {
+                    hangingSpider(canvas, w, t);
+                    break;
+                }
+                // The other three corners take turns between screens.
+                int kind = Math.floorMod(corner + variant, 3);
                 if (kind == 0) {
-                    pumpkin(canvas, x, y + 3 * dp, 19 * dp, flicker);
+                    pumpkin(canvas, x, y + 3 * dp, 18 * dp, flicker);
                 } else if (kind == 1) {
-                    ghost(canvas, x, y + bob, 15 * dp);
-                } else if (kind == 2) {
-                    bat(canvas, x + (float) Math.sin(t * 0.8 + index) * 6 * dp, y + bob, 14 * dp,
-                            (float) Math.sin(t * 9 + index));
+                    ghost(canvas, x, y + bob, 14 * dp);
                 } else {
                     candyBucket(canvas, x, y + 9 * dp, 13 * dp);
                 }
                 break;
             case FEMBOY:
-                if (kind % 2 == 0) {
-                    bow(canvas, x, y + bob - 4 * dp, 15 * dp, kind == 0 ? Color.rgb(255, 92, 170) : Color.rgb(120, 190, 255));
+                if (index % 2 == 0) {
+                    bow(canvas, x, y + bob - 4 * dp, 15 * dp,
+                            corner < BOTTOM_LEFT ? Color.rgb(255, 92, 170) : Color.rgb(120, 190, 255));
                 } else {
                     risingHearts(canvas, x, y, t + index);
                 }
                 break;
             case NEON:
-                bolt(canvas, x, y, 46 * dp, pulse, kind % 2 == 0 ? Color.rgb(57, 255, 20) : Color.rgb(255, 0, 229));
+                bolt(canvas, x, y, 42 * dp, pulse, index % 2 == 0 ? Color.rgb(57, 255, 20) : Color.rgb(255, 0, 229));
                 break;
             case OCEAN:
                 bubbles(canvas, x, y, t + index * 0.37f);
                 break;
             case GOLD:
-                glow.setShader(new RadialGradient(x, y, 24 * dp, Color.argb((int) (130 * pulse), 255, 210, 80),
+                glow.setShader(new RadialGradient(x, y, 22 * dp, Color.argb((int) (130 * pulse), 255, 210, 80),
                         Color.TRANSPARENT, Shader.TileMode.CLAMP));
-                canvas.drawCircle(x, y, 24 * dp, glow);
+                canvas.drawCircle(x, y, 22 * dp, glow);
                 crown(canvas, x, y + bob, 15 * dp);
                 break;
             case SAKURA:
-                blossom(canvas, x, y + bob * 0.5f, kind % 2 == 0 ? 17 * dp : 13 * dp);
+                blossom(canvas, x, y + bob * 0.5f, index % 2 == 0 ? 16 * dp : 13 * dp);
                 float phase = ((t * 0.3f) + index * 0.29f) % 1f;
-                petal(canvas, x + (float) Math.sin(t * 1.2 + index) * 12 * dp, y - 20 * dp + phase * 40 * dp,
+                petal(canvas, x + (float) Math.sin(t * 1.2 + index) * 10 * dp, y - 18 * dp + phase * 36 * dp,
                         6 * dp, t * 90 + index * 40, (int) (240 * Math.sin(Math.PI * phase)));
                 break;
             case PRISM:
@@ -407,7 +278,7 @@ public final class PrismDecor extends Drawable implements Runnable {
                         Color.rgb(139, 92, 246)};
                 for (int i = 0; i < 3; i++) {
                     float twinkle = (float) Math.max(0.15, Math.sin(t * 1.8 + index + i * 2.1));
-                    star(canvas, x + (i - 1) * 13 * dp, y + (i == 1 ? -10 : 8) * dp, (7 + 9 * twinkle) * dp,
+                    star(canvas, x + (i - 1) * 12 * dp, y + (i == 1 ? -9 : 8) * dp, (6 + 8 * twinkle) * dp,
                             PrismTheme.withAlpha(colors[(index + i) % colors.length], 0.95f * twinkle));
                 }
                 break;
@@ -416,31 +287,27 @@ public final class PrismDecor extends Drawable implements Runnable {
         }
     }
 
-    private void risingHearts(Canvas canvas, float x, float y, float t) {
-        for (int i = 0; i < 3; i++) {
-            float phase = ((t * 0.3f) + i / 3f) % 1f;
-            heart(canvas, x + (i - 1) * 12 * dp + (float) Math.sin(t * 2 + i) * 3 * dp, y + 18 * dp - phase * 36 * dp,
-                    (6 + i % 2 * 2) * dp, PrismTheme.withAlpha(i == 1 ? Color.rgb(120, 190, 255) : Color.rgb(255, 92, 170),
-                            (float) Math.sin(Math.PI * phase)));
-        }
+    /**
+     * A small web on the right edge with the spider on its thread, slowly letting itself down
+     * and climbing back up, swinging a little.
+     */
+    private void hangingSpider(Canvas canvas, float w, float t) {
+        float anchor = area.top;
+        cobweb(canvas, w, anchor, 30 * dp, -1);
+        float x = w - 22 * dp;
+        float length = 16 * dp + (area.height() - 46 * dp) * (0.5f + 0.5f * (float) Math.sin(t * 0.6));
+        float swing = (float) Math.sin(t * 1.7) * 7f;
+        canvas.save();
+        canvas.rotate(swing, x, anchor);
+        stroke.setShader(null);
+        stroke.setColor(Color.argb(210, 255, 255, 255));
+        stroke.setStrokeWidth(1f * dp);
+        canvas.drawLine(x, anchor, x, anchor + length, stroke);
+        spider(canvas, x, anchor + length + 9 * dp, 0.8f);
+        canvas.restore();
     }
 
-    private void bubbles(Canvas canvas, float x, float y, float t) {
-        for (int i = 0; i < 4; i++) {
-            float phase = ((t * (0.25f + i * 0.04f)) + i / 4f) % 1f;
-            float bx = x + (float) Math.sin(t * 2 + i * 1.7) * 9 * dp;
-            float by = y + 22 * dp - phase * 44 * dp;
-            float r = (4 + (i % 3) * 2.5f) * dp;
-            int alpha = (int) (240 * Math.sin(Math.PI * phase));
-            stroke.setShader(null);
-            stroke.setColor(Color.argb(alpha, 210, 250, 255));
-            stroke.setStrokeWidth(1.4f * dp);
-            canvas.drawCircle(bx, by, r, stroke);
-            fill.setShader(null);
-            fill.setColor(Color.argb(alpha, 255, 255, 255));
-            canvas.drawCircle(bx - r * 0.35f, by - r * 0.35f, r * 0.28f, fill);
-        }
-    }
+    // region shapes
 
     private void ghost(Canvas canvas, float x, float y, float r) {
         glow.setShader(new RadialGradient(x, y, r * 2f, Color.argb(110, 200, 210, 255),
@@ -672,115 +539,31 @@ public final class PrismDecor extends Drawable implements Runnable {
         canvas.restore();
     }
 
-    // endregion
-
-    // region other themes
-
-    private boolean drawFemboy(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(255, 92, 170));
-        bow(canvas, w * slot(1), band * 0.5f, band * 0.3f, Color.rgb(255, 92, 170));
-        bow(canvas, w * slot(3), band * 0.55f, band * 0.22f, Color.rgb(120, 190, 255));
+    private void risingHearts(Canvas canvas, float x, float y, float t) {
         for (int i = 0; i < 3; i++) {
-            float phase = ((t * 0.25f) + i / 3f) % 1f;
-            float x = w * slot(2) + (i - 1) * band * 0.4f;
-            float y = band * (1.05f - phase * 0.85f);
-            heart(canvas, x, y, band * 0.14f, PrismTheme.withAlpha(
-                    i == 1 ? Color.rgb(120, 190, 255) : Color.rgb(255, 92, 170),
-                    (float) Math.sin(Math.PI * phase)));
+            float phase = ((t * 0.3f) + i / 3f) % 1f;
+            heart(canvas, x + (i - 1) * 12 * dp + (float) Math.sin(t * 2 + i) * 3 * dp, y + 18 * dp - phase * 36 * dp,
+                    (6 + i % 2 * 2) * dp, PrismTheme.withAlpha(i == 1 ? Color.rgb(120, 190, 255) : Color.rgb(255, 92, 170),
+                            (float) Math.sin(Math.PI * phase)));
         }
-        sparkles(canvas, w, band, t, Color.WHITE);
-        return true;
     }
 
-    private boolean drawNeon(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(255, 0, 229));
-        float pulse = 0.6f + 0.4f * (float) Math.sin(t * 2.4);
-        for (int layer = 2; layer >= 0; layer--) {
-            stroke.setStrokeWidth((1.6f + layer * 3f) * dp);
-            stroke.setShader(new LinearGradient(0, 0, w, 0,
-                    PrismTheme.withAlpha(Color.rgb(57, 255, 20), layer == 0 ? 1f : 0.25f * pulse),
-                    PrismTheme.withAlpha(Color.rgb(255, 0, 229), layer == 0 ? 1f : 0.25f * pulse),
-                    Shader.TileMode.CLAMP));
-            canvas.drawLine(0, band - 1.5f * dp, w, band - 1.5f * dp, stroke);
-        }
-        stroke.setShader(null);
-        // A neon bolt that moves to a different spot on every screen.
-        bolt(canvas, w * slot(1), band * 0.52f, band, pulse, Color.rgb(57, 255, 20));
-        sparkles(canvas, w, band, t, Color.rgb(57, 255, 20));
-        return true;
-    }
-
-    private boolean drawOcean(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(0, 170, 255));
-        for (int i = 0; i < 8; i++) {
-            float phase = ((t * (0.18f + (i % 3) * 0.05f)) + i / 8f) % 1f;
-            float x = w * slot(i % 3 + 1) + (float) Math.sin(t * 2 + i) * band * 0.15f;
-            float y = band * (1.2f - phase * 1.1f);
-            float r = band * (0.08f + (i % 3) * 0.035f);
-            int alpha = (int) (230 * (1 - phase));
+    private void bubbles(Canvas canvas, float x, float y, float t) {
+        for (int i = 0; i < 4; i++) {
+            float phase = ((t * (0.25f + i * 0.04f)) + i / 4f) % 1f;
+            float bx = x + (float) Math.sin(t * 2 + i * 1.7) * 9 * dp;
+            float by = y + 22 * dp - phase * 44 * dp;
+            float r = (4 + (i % 3) * 2.5f) * dp;
+            int alpha = (int) (240 * Math.sin(Math.PI * phase));
             stroke.setShader(null);
             stroke.setColor(Color.argb(alpha, 210, 250, 255));
-            stroke.setStrokeWidth(1.3f * dp);
-            canvas.drawCircle(x, y, r, stroke);
+            stroke.setStrokeWidth(1.4f * dp);
+            canvas.drawCircle(bx, by, r, stroke);
             fill.setShader(null);
             fill.setColor(Color.argb(alpha, 255, 255, 255));
-            canvas.drawCircle(x - r * 0.35f, y - r * 0.35f, r * 0.28f, fill);
+            canvas.drawCircle(bx - r * 0.35f, by - r * 0.35f, r * 0.28f, fill);
         }
-        return true;
     }
-
-    private boolean drawGold(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(255, 190, 0));
-        glow.setShader(new RadialGradient(w * slot(1), band * 0.55f, band * 0.8f,
-                Color.argb(120, 255, 210, 80), Color.TRANSPARENT, Shader.TileMode.CLAMP));
-        canvas.drawCircle(w * slot(1), band * 0.55f, band * 0.8f, glow);
-        crown(canvas, w * slot(1), band * 0.58f, band * 0.36f);
-        sparkles(canvas, w, band, t, Color.rgb(255, 224, 120));
-        return true;
-    }
-
-    private boolean drawSakura(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(255, 92, 160));
-        blossom(canvas, w * slot(1), band * 0.5f, band * 0.3f);
-        blossom(canvas, w * slot(2), band * 0.42f, band * 0.22f);
-        for (int i = 0; i < 5; i++) {
-            float phase = ((t * 0.2f) + i / 5f) % 1f;
-            float x = w * slot(i % 4) + (float) Math.sin(t * 1.1 + i * 1.7) * band * 0.25f;
-            petal(canvas, x, phase * band * 1.25f, band * 0.11f, t * 90 + i * 40,
-                    (int) (240 * Math.sin(Math.PI * phase)));
-        }
-        return true;
-    }
-
-    private boolean drawPrism(Canvas canvas, float w, float band, float t) {
-        bandFog(canvas, w, band, Color.rgb(139, 92, 246));
-        float px = w * slot(2);
-        float py = band * 0.52f;
-        float s = band * 0.34f;
-        int[] rainbow = {Color.rgb(255, 64, 64), Color.rgb(255, 170, 0), Color.rgb(255, 235, 59),
-                Color.rgb(76, 217, 100), Color.rgb(34, 211, 238), Color.rgb(139, 92, 246)};
-        stroke.setShader(null);
-        stroke.setStrokeWidth(1.8f * dp);
-        for (int i = 0; i < rainbow.length; i++) {
-            stroke.setColor(PrismTheme.withAlpha(rainbow[i], 0.9f));
-            canvas.drawLine(px - s * 0.3f, py + s * 0.2f, px - band * 1.8f, py - s + i * s * 0.42f, stroke);
-        }
-        path.reset();
-        path.moveTo(px, py - s);
-        path.lineTo(px + s, py + s * 0.8f);
-        path.lineTo(px - s, py + s * 0.8f);
-        path.close();
-        fill.setShader(new LinearGradient(px - s, py - s, px + s, py + s,
-                Color.argb(240, 255, 255, 255), Color.argb(130, 180, 200, 255), Shader.TileMode.CLAMP));
-        canvas.drawPath(path, fill);
-        fill.setShader(null);
-        sparkles(canvas, w, band, t, Color.WHITE);
-        return true;
-    }
-
-    // endregion
-
-    // region shapes
 
     /** Lightning bolt about {@code size} tall, centered on (x, y), with a glow of {@code color}. */
     private void bolt(Canvas canvas, float x, float y, float size, float pulse, int color) {
@@ -799,28 +582,6 @@ public final class PrismDecor extends Drawable implements Runnable {
         fill.setShader(null);
         fill.setColor(PrismTheme.blend(color, Color.WHITE, 0.7f));
         canvas.drawPath(path, fill);
-    }
-
-    /** Theme-colored tint of the status bar strip, fading out just below it. */
-    private void bandFog(Canvas canvas, float w, float band, int color) {
-        fill.setShader(new LinearGradient(0, 0, 0, band * 1.25f,
-                PrismTheme.withAlpha(color, 0.62f), PrismTheme.withAlpha(color, 0f), Shader.TileMode.CLAMP));
-        canvas.drawRect(0, 0, w, band * 1.25f, fill);
-        fill.setShader(null);
-    }
-
-    /** Twinkles in the free middle-right part of the status bar. */
-    private void sparkles(Canvas canvas, float w, float band, float t, int color) {
-        float[][] spots = {{slot(0) + 0.02f, 0.3f}, {slot(1) - 0.02f, 0.78f}, {slot(2) + 0.025f, 0.32f},
-                {slot(3) + 0.02f, 0.82f}};
-        for (int i = 0; i < spots.length; i++) {
-            float twinkle = (float) Math.max(0, Math.sin(t * 1.8 + i * 1.3));
-            if (twinkle <= 0.05f) {
-                continue;
-            }
-            star(canvas, spots[i][0] * w, spots[i][1] * band, band * (0.08f + 0.1f * twinkle),
-                    PrismTheme.withAlpha(color, 0.9f * twinkle));
-        }
     }
 
     private void star(Canvas canvas, float x, float y, float r, int color) {
