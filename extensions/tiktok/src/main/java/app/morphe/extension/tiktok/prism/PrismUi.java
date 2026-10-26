@@ -133,7 +133,8 @@ public final class PrismUi {
         }
     }
 
-    private static final class Scanner implements ViewTreeObserver.OnGlobalLayoutListener, Runnable {
+    private static final class Scanner implements ViewTreeObserver.OnGlobalLayoutListener,
+            ViewTreeObserver.OnScrollChangedListener, Runnable {
         private final WeakReference<Activity> activityRef;
         private final boolean isMain;
         private WeakReference<View> barRef = new WeakReference<>(null);
@@ -152,6 +153,8 @@ public final class PrismUi {
             }
             decor = activity.getWindow().getDecorView();
             decor.getViewTreeObserver().addOnGlobalLayoutListener(this);
+            // Scrolling moves content under the decorations without a layout pass.
+            decor.getViewTreeObserver().addOnScrollChangedListener(this);
             schedule();
         }
 
@@ -165,6 +168,11 @@ public final class PrismUi {
 
         @Override
         public void onGlobalLayout() {
+            schedule();
+        }
+
+        @Override
+        public void onScrollChanged() {
             schedule();
         }
 
@@ -218,7 +226,87 @@ public final class PrismUi {
             }
             layer.setInsets(top, bottom);
             layer.setVariant(screenVariant(root));
+            collectObstacles(root);
             layer.invalidateSelf();
+        }
+
+        private final List<RectF> blocked = new ArrayList<>();
+        private final List<RectF> video = new ArrayList<>();
+        private final android.graphics.Rect visible = new android.graphics.Rect();
+
+        /**
+         * Finds where TikTok has something to see or tap: text, inputs, icons, buttons and the
+         * player. Decorations only go into the empty spots left over.
+         */
+        private void collectObstacles(View root) {
+            blocked.clear();
+            video.clear();
+            float screen = (float) root.getWidth() * root.getHeight();
+            if (screen > 0) {
+                collectObstacles(root, screen);
+            }
+            PrismDecor layer = decorRef.get();
+            if (layer != null) {
+                layer.setObstacles(toArray(blocked), toArray(video));
+            }
+        }
+
+        private void collectObstacles(View view, float screen) {
+            if (blocked.size() > 600 || view.getVisibility() != View.VISIBLE || view.getAlpha() < 0.05f
+                    || !view.getGlobalVisibleRect(visible)) {
+                return;
+            }
+            float area = (float) visible.width() * visible.height();
+            String name = view.getClass().getName();
+            if (view instanceof android.view.TextureView || view instanceof android.view.SurfaceView) {
+                video.add(new RectF(visible));
+                return;
+            }
+            if (name.contains("ComposeView") || name.contains("WebView")) {
+                // Nothing inside can be seen from here, so the whole thing is off limits.
+                blocked.add(new RectF(visible));
+                return;
+            }
+            if (view instanceof EditText) {
+                // Inputs get extra room so the keyboard row and send button stay clear.
+                RectF rect = new RectF(visible);
+                float pad = 18 * view.getResources().getDisplayMetrics().density;
+                rect.inset(-pad, -pad);
+                blocked.add(rect);
+                return;
+            }
+            if (view instanceof TextView) {
+                if (((TextView) view).length() > 0) {
+                    blocked.add(new RectF(visible));
+                }
+                return;
+            }
+            if (view instanceof android.widget.ImageView) {
+                // A screen-sized image is a video cover, which counts as the video.
+                (area > screen * 0.4f ? video : blocked).add(new RectF(visible));
+                return;
+            }
+            if ((view.isClickable() || view.isLongClickable()) && area < screen * 0.25f) {
+                blocked.add(new RectF(visible));
+            }
+            if (view instanceof ViewGroup) {
+                ViewGroup group = (ViewGroup) view;
+                for (int i = 0, count = group.getChildCount(); i < count; i++) {
+                    collectObstacles(group.getChildAt(i), screen);
+                }
+            }
+        }
+
+        private static float[] toArray(List<RectF> rects) {
+            float[] out = new float[rects.size() * 4];
+            for (int i = 0; i < rects.size(); i++) {
+                RectF rect = rects.get(i);
+                out[i * 4] = rect.left;
+                out[i * 4 + 1] = rect.top;
+                out[i * 4 + 2] = rect.right;
+                out[i * 4 + 3] = rect.bottom;
+            }
+            return out;
         }
 
         /** Bottom tab index on the main screen, else a stable number per screen class. */
