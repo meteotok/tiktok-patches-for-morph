@@ -17,12 +17,14 @@ private const val FEATURE_CONTROLS_DESCRIPTOR =
     "Lapp/morphe/extension/tiktok/featurecontrols/FeatureControls;"
 
 @Suppress("unused")
-val disableLongPressQuickSharePatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val disableLongPressQuickSharePatch = bytecodePatch(
     name = "Disable long-press quick share",
     description = "Keeps long-pressing Share from opening TikTok's quick-share interaction.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

@@ -18,11 +18,16 @@ internal object OnRenderFirstFrameBodyFingerprint : Fingerprint(
     definingClass = "/feed/controller/PlayerController;",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "V",
-    parameters = listOf(
-        "Lcom/ss/android/ugc/aweme/feed/controller/PlayerController;",
-        "LX/0pb0;",
-    ),
-    custom = { method, _ -> method.name == "LLILZIL" },
+    // Static body of onRenderFirstFrame; its name and the event type are obfuscated per release.
+    custom = { method, classDef ->
+        val parameters = method.parameterTypes
+        parameters.size == 2 &&
+            parameters[0] == "Lcom/ss/android/ugc/aweme/feed/controller/PlayerController;" &&
+            parameters[1].startsWith("LX/") &&
+            classDef.methods.any { candidate ->
+                candidate.name == "onRenderFirstFrame" && candidate.parameterTypes == listOf(parameters[1])
+            }
+    },
 )
 
 internal object ClearModeLogCoreFingerprint : Fingerprint(

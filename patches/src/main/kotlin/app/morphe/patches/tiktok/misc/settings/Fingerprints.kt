@@ -56,10 +56,10 @@ internal object SettingsComposeRowsFingerprint : Fingerprint(
     custom = { method, classDef ->
         classDef.endsWith("/SettingsComposeRvmpFragment;") &&
             method.returnType == "V" &&
-            (
-                (method.name == "XN" && method.parameterTypes.size == 8) ||
-                    (method.name == "ER" && method.parameterTypes.size == 11)
-            )
+            // Renamed between releases (XN, ER, EX on 47.5.3): the composable that merges every
+            // settings group takes the support group view model among its parameters.
+            method.parameterTypes.any { it.endsWith("/SupportGroupVM;") } &&
+            method.parameterTypes.size in 8..11
     },
 )
 

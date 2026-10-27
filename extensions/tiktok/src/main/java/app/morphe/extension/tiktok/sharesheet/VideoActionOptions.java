@@ -19,22 +19,22 @@ public final class VideoActionOptions {
     private static final String RAW_PREFIX = "RAW:";
 
     public static final Option[] OPTIONS = {
-            new Option("report", "Report"),
-            new Option("dislike", "Not Interested"),
-            new Option("why_this_video", "Why This Post"),
-            new Option("duet", "Duet"),
-            new Option("stitch", "Stitch"),
-            new Option("save_photo", "Save Photo"),
-            new Option("save", "Save Video"),
-            new Option("gif", "Share as GIF"),
-            new Option("captions", "Captions"),
-            new Option("live_photo", "Set as Wallpaper"),
-            new Option("im_create_group", "Create Group"),
-            new Option("create_sticker", "Create Sticker"),
-            new Option("playback_speed", "Playback Speed"),
-            new Option("promote_for_others_fyp", "Promote"),
-            new Option("share_to_story", "Add to Story"),
-            new Option("show_in_chat", "Show in Chat"),
+            new Option("report", "Пожаловаться"),
+            new Option("dislike", "Не интересно"),
+            new Option("why_this_video", "Почему этот пост"),
+            new Option("duet", "Дуэт"),
+            new Option("stitch", "Сшивка"),
+            new Option("save_photo", "Сохранить фото"),
+            new Option("save", "Сохранить видео"),
+            new Option("gif", "Отправить как GIF"),
+            new Option("captions", "Субтитры"),
+            new Option("live_photo", "Поставить на обои"),
+            new Option("im_create_group", "Создать группу"),
+            new Option("create_sticker", "Создать стикер"),
+            new Option("playback_speed", "Скорость"),
+            new Option("promote_for_others_fyp", "Продвигать"),
+            new Option("share_to_story", "Добавить в историю"),
+            new Option("show_in_chat", "Показать в чате"),
     };
 
     private VideoActionOptions() {

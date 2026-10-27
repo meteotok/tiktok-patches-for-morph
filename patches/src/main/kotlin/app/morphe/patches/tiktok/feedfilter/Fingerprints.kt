@@ -51,7 +51,6 @@ internal object MainFeedResponseFingerprint : Fingerprint(
 internal object FeedItemListGetItemsFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;",
     name = "getItems",
-    accessFlags = listOf(AccessFlags.PUBLIC),
     returnType = "Ljava/util/List;",
     parameters = emptyList(),
     custom = { method, _ ->
@@ -212,7 +211,6 @@ internal object FollowFeedFingerprint : Fingerprint(
 internal object FollowFeedListGetItemsFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/follow/presenter/FollowFeedList;",
     name = "getItems",
-    accessFlags = listOf(AccessFlags.PUBLIC),
     returnType = "Ljava/util/List;",
     parameters = emptyList(),
 )
@@ -287,28 +285,38 @@ internal object FinalFeedInsertionFingerprint : Fingerprint(
     },
 )
 
+// 47.5.3 split the cold-start cache lookup: the golden-video and offline-video cache paths
+// that were inlined into one method on 46.2.3 are now separate static helpers.
 internal object ColdStartCachedFeedFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Z",
     parameters = emptyList(),
     strings = listOf(
-        "processGoldenVideoHitCache hitCache , time cost ",
-        "processOfflineVideoHitCache error",
+        "hitCache:use origin cache,values: ",
+        "feed_cache_exit_when_used",
     ),
-    custom = { method, _ ->
-        method.implementation?.instructions?.count {
-            it.opcode == com.android.tools.smali.dexlib2.Opcode.SPUT_OBJECT &&
-                it.getReference<FieldReference>()?.type ==
-                "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;"
-        } == 4
-    },
+)
+
+internal object GoldenVideoCachedFeedFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    returnType = "Z",
+    parameters = emptyList(),
+    strings = listOf("processGoldenVideoHitCache hitCache , time cost "),
+)
+
+internal object OfflineVideoCachedFeedFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    returnType = "Z",
+    parameters = emptyList(),
+    strings = listOf("processOfflineVideoHitCache error"),
 )
 
 internal object CacheChainDeliveryFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "V",
     custom = custom@{ method, classDef ->
-        if (method.parameterTypes.size != 1 || classDef.fields.count() != 2) return@custom false
+        // Two fields on 46.2.3; 47.5.3 adds an AtomicBoolean delivery guard.
+        if (method.parameterTypes.size != 1 || classDef.fields.count() !in 2..3) return@custom false
 
         val resultType = method.parameterTypes.single().toString()
         val instructions = method.implementation?.instructions ?: return@custom false
@@ -324,17 +332,20 @@ internal object CacheChainDeliveryFingerprint : Fingerprint(
         val followsLinkedCacheSource = fieldReferences.any { reference ->
             reference.definingClass in ownFieldTypes && reference.type == reference.definingClass
         }
-        val dispatchesNextCacheSource = methodReferences.any { reference ->
-            reference.returnType == "V" &&
-                reference.parameterTypes.size == 2 &&
-                reference.parameterTypes.all { it.toString() in ownFieldTypes }
+        val dispatchesNextCacheSource = instructions.any { instruction ->
+            instruction.opcode == com.android.tools.smali.dexlib2.Opcode.INVOKE_STATIC &&
+                instruction.getReference<MethodReference>()?.let { reference ->
+                    reference.returnType == "V" &&
+                        reference.parameterTypes.size == 2 &&
+                        reference.parameterTypes.all { it.toString() in ownFieldTypes } &&
+                        // The next source is the linked cache-source node itself.
+                        fieldReferences.any { field ->
+                            field.definingClass == reference.parameterTypes[1].toString() &&
+                                field.type == field.definingClass
+                        }
+                } == true
         }
-        val launchesCoroutine = methodReferences.any { reference ->
-            reference.parameterTypes.any { it.toString() == "Lkotlin/jvm/functions/Function2;" }
-        }
-
-        readsResultPayload && followsLinkedCacheSource &&
-            dispatchesNextCacheSource && launchesCoroutine
+        readsResultPayload && followsLinkedCacheSource && dispatchesNextCacheSource
     },
 )
 
@@ -476,11 +487,12 @@ internal object ProfileDetailAdEventFingerprint : Fingerprint(
     },
 )
 
+// Named bq on 46.2.3 and gq on 47.5.3; the interact-area slot key is stable.
 internal object TakoAiFeedButtonSetVisibleFingerprint : Fingerprint(
     definingClass = "/feed/assem/tikbot/TakoAssem;",
-    name = "bq",
     returnType = "V",
     parameters = listOf("Z"),
+    strings = listOf("right_container_chat_gpt"),
 )
 
 internal object FollowFeedPresenterPostProcessFingerprint : Fingerprint(

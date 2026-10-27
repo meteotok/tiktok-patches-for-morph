@@ -88,7 +88,7 @@ public class RangeValuePreference extends DialogPreference {
 
         TextView helper = SettingsUi.text(
                 context,
-                "Leave maximum empty to keep it unlimited.",
+                "Оставь максимум пустым — без ограничений.",
                 14,
                 SettingsUi.textSecondary(),
                 Typeface.NORMAL
@@ -100,7 +100,7 @@ public class RangeValuePreference extends DialogPreference {
         helperParams.setMargins(0, SettingsUi.dp(context, 14), 0, SettingsUi.dp(context, 12));
         dialogView.addView(helper, helperParams);
 
-        TextView min = SettingsUi.text(context, "Minimum", 13, SettingsUi.textSecondary(), Typeface.BOLD);
+        TextView min = SettingsUi.text(context, "Минимум", 13, SettingsUi.textSecondary(), Typeface.BOLD);
         dialogView.addView(min);
 
         EditText minEditText = new EditText(context);
@@ -113,7 +113,7 @@ public class RangeValuePreference extends DialogPreference {
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
 
-        TextView max = SettingsUi.text(context, "Maximum", 13, SettingsUi.textSecondary(), Typeface.BOLD);
+        TextView max = SettingsUi.text(context, "Максимум", 13, SettingsUi.textSecondary(), Typeface.BOLD);
         LinearLayout.LayoutParams maxLabelParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -124,7 +124,7 @@ public class RangeValuePreference extends DialogPreference {
         EditText maxEditText = new EditText(context);
         maxEditText.setInputType(InputType.TYPE_CLASS_NUMBER);
         maxEditText.setSingleLine(true);
-        maxEditText.setHint("Unlimited");
+        maxEditText.setHint("Без ограничений");
         maxEditText.setText(Long.toString(Long.MAX_VALUE).equals(maxValue) ? "" : maxValue);
         SettingsUi.styleEditText(maxEditText);
         dialogView.addView(maxEditText, new LinearLayout.LayoutParams(
@@ -173,7 +173,7 @@ public class RangeValuePreference extends DialogPreference {
 
     @Override
     protected void onPrepareDialogBuilder(AlertDialog.Builder builder) {
-        builder.setPositiveButton("Save", (dialog, which)
+        builder.setPositiveButton("Сохранить", (dialog, which)
                 -> this.onClick(dialog, DialogInterface.BUTTON_POSITIVE));
         builder.setNegativeButton(android.R.string.cancel, null);
     }

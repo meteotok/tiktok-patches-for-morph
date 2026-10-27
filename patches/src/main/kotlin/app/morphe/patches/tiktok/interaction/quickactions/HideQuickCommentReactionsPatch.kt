@@ -16,12 +16,14 @@ private const val FEATURE_CONTROLS_DESCRIPTOR =
     "Lapp/morphe/extension/tiktok/featurecontrols/FeatureControls;"
 
 @Suppress("unused")
-val hideQuickCommentReactionsPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val hideQuickCommentReactionsPatch = bytecodePatch(
     name = "Hide quick comment reactions",
     description = "Hides TikTok's exposed quick emoji row in supported comment inputs.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

@@ -12,6 +12,7 @@ import app.morphe.extension.shared.settings.BaseSettings;
 import app.morphe.extension.shared.settings.BooleanSetting;
 import app.morphe.extension.shared.settings.FloatSetting;
 import app.morphe.extension.shared.settings.IntegerSetting;
+import app.morphe.extension.shared.settings.LongSetting;
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.StringSetting;
 import app.morphe.extension.tiktok.navigation.BottomNavigationTabOptions;
@@ -31,7 +32,7 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting HIDE_CAPTCHA_POPUPS = new BooleanSetting("hide_captcha_popups", FALSE, true);
     public static final BooleanSetting HIDE_HOMEPAGE_COIN = new BooleanSetting("hide_homepage_coin", FALSE, true);
     public static final StringSetting MIN_MAX_VIEWS = new StringSetting("min_max_views", "0-" + Long.MAX_VALUE, true);
-    public static final StringSetting MIN_MAX_LIKES = new StringSetting("min_max_likes", "0-" + Long.MAX_VALUE, true);
+    public static final StringSetting MIN_MAX_LIKES = new StringSetting("min_max_likes_v2", "0-4999", true);
     public static final BooleanSetting FILTER_OFFLINE_FALLBACK_VIDEOS = new BooleanSetting(
             "filter_cached_offline_videos",
             TRUE,
@@ -148,8 +149,9 @@ public class Settings extends BaseSettings {
             Setting.parent(FOLDABLE_SPLIT_VIEW)
     );
     public static final BooleanSetting COPY_COMMENTS_WITHOUT_USERNAME = new BooleanSetting("copy_comments_without_username", TRUE);
-    public static final FloatSetting REMEMBERED_SPEED = new FloatSetting("remembered_speed_v2", 1.0f);
+    public static final FloatSetting REMEMBERED_SPEED = new FloatSetting("remembered_speed_v3", 1.0f);
     public static final BooleanSetting ENABLE_LONG_PRESS_SPEED_LOCK = new BooleanSetting("enable_long_press_speed_lock", FALSE, true);
+    public static final BooleanSetting HOLD_ANYWHERE_2X = new BooleanSetting("hold_anywhere_2x", TRUE, true);
     public static final BooleanSetting DISABLE_LONG_PRESS_QUICK_SHARE =
             new BooleanSetting("disable_long_press_quick_share", FALSE);
     public static final BooleanSetting DISABLE_LONG_PRESS_REPOST =
@@ -158,10 +160,11 @@ public class Settings extends BaseSettings {
             new BooleanSetting("enable_non_personalized_search", FALSE, true);
     public static final BooleanSetting ENABLE_LIVE_SEARCH =
             new BooleanSetting("enable_live_search", FALSE, true);
-    public static final BooleanSetting SIM_SPOOF = new BooleanSetting("simspoof", FALSE, true);
-    public static final StringSetting SIM_SPOOF_ISO = new StringSetting("simspoof_iso", "us");
-    public static final StringSetting SIMSPOOF_MCCMNC = new StringSetting("simspoof_mccmnc", "310260");
-    public static final StringSetting SIMSPOOF_OP_NAME = new StringSetting("simspoof_op_name", "T-Mobile");
+    // Region spoof is on by default and presents a Dutch KPN SIM (Netherlands preset).
+    public static final BooleanSetting SIM_SPOOF = new BooleanSetting("simspoof", TRUE, true);
+    public static final StringSetting SIM_SPOOF_ISO = new StringSetting("simspoof_iso", "nl");
+    public static final StringSetting SIMSPOOF_MCCMNC = new StringSetting("simspoof_mccmnc", "20408");
+    public static final StringSetting SIMSPOOF_OP_NAME = new StringSetting("simspoof_op_name", "KPN");
     public static final BooleanSetting SHARE_SHEET_SEND_TO = new BooleanSetting("share_sheet_send_to", TRUE, true);
     // Keep the original key so existing installations retain the user's choice.
     public static final BooleanSetting FORCE_SHOW_AUTO_SCROLL = new BooleanSetting(
@@ -192,6 +195,29 @@ public class Settings extends BaseSettings {
     public static final StringSetting SHARE_SHEET_ACTIONS_OBSERVED = new StringSetting(
             "share_sheet_actions_observed",
             "",
+            false,
+            false
+    );
+
+    // Prism appearance.
+    public static final StringSetting PRISM_THEME = new StringSetting("prism_theme", "prism");
+    public static final StringSetting PRISM_APP_ICON = new StringSetting("prism_app_icon", "prism");
+    public static final BooleanSetting PRISM_GLASS_NAV = new BooleanSetting("prism_glass_nav", TRUE);
+    public static final BooleanSetting PRISM_DECOR = new BooleanSetting("prism_decor", TRUE);
+    public static final BooleanSetting PRISM_UPDATE_CHECK = new BooleanSetting("prism_update_check", TRUE);
+    public static final IntegerSetting PRISM_UPDATE_SKIPPED = new IntegerSetting("prism_update_skipped", 0);
+    public static final BooleanSetting PRISM_BADGES = new BooleanSetting("prism_badges", TRUE);
+    public static final StringSetting PRISM_BADGE_LIST = new StringSetting("prism_badge_list", "");
+    public static final BooleanSetting PRISM_REMOTE_BADGES = new BooleanSetting("prism_remote_badges", TRUE);
+    public static final StringSetting PRISM_REMOTE_BADGE_CACHE = new StringSetting(
+            "prism_remote_badge_cache",
+            "",
+            false,
+            false
+    );
+    public static final LongSetting PRISM_REMOTE_BADGE_FETCHED = new LongSetting(
+            "prism_remote_badge_fetched",
+            0L,
             false,
             false
     );

@@ -111,7 +111,16 @@ public final class FeatureControls {
     }
 
     public static boolean overrideLongPressSpeedUpEnabled(boolean enabled) {
-        return Settings.ENABLE_LONG_PRESS_SPEED_LOCK.get() || enabled;
+        return Settings.HOLD_ANYWHERE_2X.get() || Settings.ENABLE_LONG_PRESS_SPEED_LOCK.get() || enabled;
+    }
+
+    /**
+     * TikTok speeds up only inside the left and right hot zones (25% of the width each) and
+     * opens the long-press panel in the middle. 0.5 is the largest ratio TikTok accepts and
+     * makes the two zones cover the whole video.
+     */
+    public static float overrideLongPressSpeedUpWidthRatio(float ratio) {
+        return Settings.HOLD_ANYWHERE_2X.get() ? 0.5f : ratio;
     }
 
     public static int overrideLongPressSpeedUpLockDistance(int distanceDp) {

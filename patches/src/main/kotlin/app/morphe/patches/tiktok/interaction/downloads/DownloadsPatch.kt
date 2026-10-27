@@ -40,7 +40,7 @@ val downloadsPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
 
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
@@ -127,9 +127,9 @@ val downloadsPatch = bytecodePatch(
             val bindCallIndices = implementation!!.instructions.withIndex()
                 .filter { (_, instruction) ->
                     instruction.getReference<MethodReference>()?.let { reference ->
-                        reference.definingClass == "LX/0ULN;" &&
+                        reference.definingClass == "LX/14fk;" &&
                             reference.name == "LIZ" &&
-                            reference.parameterTypes.firstOrNull() == "LX/0ULM;"
+                            reference.parameterTypes.firstOrNull() == "LX/14fj;"
                     } == true
                 }
                 .map { it.index }

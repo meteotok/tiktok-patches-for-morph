@@ -21,6 +21,7 @@ import app.morphe.util.addInstructionsAtControlFlowLabel
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.builder.BuilderOffsetInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
@@ -36,7 +37,7 @@ private val feedListHooksPatch = bytecodePatch {
         sharedExtensionPatch,
     )
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
 
     execute {
         fun requirePublicClass(type: String) = classDefBy(type).also { classDef ->
@@ -209,13 +210,12 @@ private val feedListHooksPatch = bytecodePatch {
 
         val finalFeedInsertionMethod = FinalFeedInsertionFingerprint.method
         val insertionPayloadType = finalFeedInsertionMethod.parameterTypes.single().toString()
+        // The payload constructor's parameter order changed between releases
+        // ((I, String, List) on 46.2.3, (I, List, String) on 47.5.3), so match it regardless of order.
+        val insertionPayloadParameters = listOf("I", "Ljava/lang/String;", "Ljava/util/List;")
         val insertionPayloadConstructors = mutableClassDefBy(insertionPayloadType).methods.filter { method ->
             method.name == "<init>" &&
-                method.parameterTypes.map(CharSequence::toString) == listOf(
-                    "I",
-                    "Ljava/lang/String;",
-                    "Ljava/util/List;",
-                ) &&
+                method.parameterTypes.map(CharSequence::toString).sorted() == insertionPayloadParameters.sorted() &&
                 method.returnType == "V"
         }
         if (insertionPayloadConstructors.size != 1) {
@@ -224,7 +224,10 @@ private val feedListHooksPatch = bytecodePatch {
                     "found ${insertionPayloadConstructors.size}",
             )
         }
-        insertionPayloadConstructors.single().filterLateInsertedItems(insertionPayloadType)
+        val insertionPayloadConstructor = insertionPayloadConstructors.single()
+        val insertionPayloadConstructorParameters =
+            insertionPayloadConstructor.parameterTypes.map(CharSequence::toString)
+        insertionPayloadConstructor.filterLateInsertedItems(insertionPayloadType)
 
         val finalInsertionInstructions = finalFeedInsertionMethod.implementation?.instructions
             ?: throw PatchException("Final feed insertion has no implementation")
@@ -252,6 +255,13 @@ private val feedListHooksPatch = bytecodePatch {
         }
         val positionField = "${insertionPayloadType}->${positionFields.single().name}:I"
         val sourceField = "${insertionPayloadType}->${sourceFields.single().name}:Ljava/lang/String;"
+        val insertionPayloadArguments = insertionPayloadConstructorParameters.joinToString { type ->
+            when (type) {
+                "I" -> "v2"
+                "Ljava/lang/String;" -> "v3"
+                else -> "v1"
+            }
+        }
         finalFeedInsertionMethod.addInstructions(
             0,
             """
@@ -262,7 +272,7 @@ private val feedListHooksPatch = bytecodePatch {
                 iget v2, p1, $positionField
                 iget-object v3, p1, $sourceField
                 new-instance v4, $insertionPayloadType
-                invoke-direct {v4, v2, v3, v1}, $insertionPayloadType-><init>(ILjava/lang/String;Ljava/util/List;)V
+                invoke-direct {v4, $insertionPayloadArguments}, $insertionPayloadType-><init>(${insertionPayloadConstructorParameters.joinToString("")})V
                 move-object p1, v4
                 :morphe_keep_original_insertion_payload
                 nop
@@ -280,10 +290,14 @@ private val feedListHooksPatch = bytecodePatch {
         val cacheChainMethod = CacheChainDeliveryFingerprint.method
         val cacheResultType = cacheChainMethod.parameterTypes.single().toString()
         val cacheResultClass = classDefBy(cacheResultType)
+        // 47.5.3 added a second object field (cache source metadata), so pick the one holding the Aweme.
         val cachePayloadFields = cacheResultClass.fields.filter { field ->
             field.type.startsWith("L") &&
                 field.type != "Ljava/lang/String;" &&
-                field.type != "Ljava/util/List;"
+                field.type != "Ljava/util/List;" &&
+                classDefByOrNull(field.type)?.fields?.count {
+                    it.type == "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"
+                } == 1
         }
         if (cachePayloadFields.size != 1) {
             throw PatchException(
@@ -329,25 +343,26 @@ private val feedListHooksPatch = bytecodePatch {
             val listFields = cacheResultClass.fields.filter {
                 it.type == "Ljava/util/List;" && !AccessFlags.STATIC.isSet(it.accessFlags)
             }
+            // Any state after the list (47.5.3 adds a cache-source field) is copied as-is.
+            val extraFields = cacheResultClass.fields.filter {
+                !AccessFlags.STATIC.isSet(it.accessFlags) &&
+                    it != cacheSuccessField && it != cachePayloadField &&
+                    it !in sourceFields && it !in listFields
+            }
+            val copiedFields = listOf(
+                cacheSuccessField, cachePayloadField, sourceFields.single(), listFields.single(),
+            ) + extraFields
             val constructors = cacheResultClass.methods.filter {
-                it.name == "<init>" && it.parameterTypes.map(CharSequence::toString) == listOf(
-                    "Z", cachePayloadField.type, "Ljava/lang/String;", "Ljava/util/List;",
-                ) && it.returnType == "V"
+                it.name == "<init>" && it.parameterTypes.map(CharSequence::toString) ==
+                    copiedFields.map { field -> field.type } && it.returnType == "V"
             }
             if (!AccessFlags.PUBLIC.isSet(cacheResultClass.accessFlags) ||
-                sourceFields.size != 1 || listFields.size != 1 || constructors.size != 1
+                sourceFields.size != 1 || listFields.size != 1 || constructors.size != 1 ||
+                copiedFields.any { it.type == "J" || it.type == "D" }
             ) {
                 throw PatchException("Reach-bottom cache result cannot be safely copied")
             }
             val constructor = constructors.single()
-            val copiedFields = listOf(
-                cacheSuccessField, cachePayloadField, sourceFields.single(), listFields.single(),
-            )
-            if (cacheResultClass.fields.filterNot { AccessFlags.STATIC.isSet(it.accessFlags) }
-                    .toSet() != copiedFields.toSet()
-            ) {
-                throw PatchException("Reach-bottom cache result has additional state that cannot be copied")
-            }
             if (!AccessFlags.PUBLIC.isSet(constructor.accessFlags) || copiedFields.any {
                     !AccessFlags.PUBLIC.isSet(it.accessFlags) || AccessFlags.STATIC.isSet(it.accessFlags)
                 }
@@ -356,7 +371,7 @@ private val feedListHooksPatch = bytecodePatch {
             }
             val constructorImplementation = constructor.implementation
                 ?: throw PatchException("Reach-bottom cache result constructor has no implementation")
-            val thisRegister = constructorImplementation.registerCount - 5
+            val thisRegister = constructorImplementation.registerCount - copiedFields.size - 1
             copiedFields.forEachIndexed { index, field ->
                 val expectedOpcode = if (index == 0) Opcode.IPUT_BOOLEAN else Opcode.IPUT_OBJECT
                 val store = constructorImplementation.instructions.singleOrNull {
@@ -372,83 +387,14 @@ private val feedListHooksPatch = bytecodePatch {
                 cachePayloadField,
                 cachedAwemeField,
                 cacheSuccessField,
-                sourceFields.single(),
-                listFields.single(),
+                copiedFields.drop(2),
                 constructor,
             )
         }
 
-        ColdStartCachedFeedFingerprint.method.let { method ->
-            val instructions = method.implementation!!.instructions
-            val cacheStoreIndices = instructions.withIndex()
-                .filter {
-                    it.value.opcode == Opcode.SPUT_OBJECT &&
-                        (it.value as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
-                            ?.reference
-                            ?.let { reference ->
-                                reference is FieldReference &&
-                                    reference.type == "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;"
-                            } == true
-                }
-                .map { it.index }
-                .toList()
-            if (cacheStoreIndices.size != 4) {
-                throw PatchException(
-                    "Expected four cold-start cached FeedItemList stores, " +
-                        "found ${cacheStoreIndices.size}",
-                )
-            }
-
-            val offlineMarkers = instructions.withIndex()
-                .filter { (_, instruction) ->
-                    instruction.getReference<FieldReference>()?.let { reference ->
-                        instruction.opcode == Opcode.SGET_OBJECT &&
-                            reference.name == "OFFLINE_MODE" &&
-                            reference.type == reference.definingClass
-                    } == true
-                }
-                .map { it.index }
-                .toList()
-            if (offlineMarkers.size != 1) {
-                throw PatchException(
-                    "Expected one OFFLINE_MODE marker in cold-start cache method, " +
-                        "found ${offlineMarkers.size}",
-                )
-            }
-            val offlineMarker = offlineMarkers.single()
-            val offlineStoreIndices = cacheStoreIndices.filter { it > offlineMarker }
-            if (offlineStoreIndices.size != 1) {
-                throw PatchException(
-                    "Expected one offline FeedItemList store after OFFLINE_MODE, " +
-                        "found ${offlineStoreIndices.size}",
-                )
-            }
-            val offlineStoreIndex = offlineStoreIndices.single()
-
-            cacheStoreIndices.asReversed().forEachIndexed { ordinal, storeIndex ->
-                val listRegister =
-                    (method.implementation!!.instructions[storeIndex] as OneRegisterInstruction).registerA
-                val filterMethod = if (storeIndex == offlineStoreIndex) {
-                    "filterOfflineFeedList"
-                } else {
-                    "filterCachedFeedList"
-                }
-                method.addInstructionsWithLabels(
-                    storeIndex,
-                    """
-                        invoke-static/range {v$listRegister .. v$listRegister}, $EXTENSION_CLASS_DESCRIPTOR->$filterMethod(Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;)Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;
-                        move-result-object v$listRegister
-                        if-nez v$listRegister, :morphe_keep_cold_cache_$ordinal
-                        const/4 v$listRegister, 0x0
-                        return v$listRegister
-                    """,
-                    ExternalLabel(
-                        "morphe_keep_cold_cache_$ordinal",
-                        method.getInstruction(storeIndex),
-                    ),
-                )
-            }
-        }
+        ColdStartCachedFeedFingerprint.method.filterColdStartCacheStores("filterCachedFeedList", "cold")
+        GoldenVideoCachedFeedFingerprint.method.filterColdStartCacheStores("filterCachedFeedList", "golden")
+        OfflineVideoCachedFeedFingerprint.method.filterColdStartCacheStores("filterOfflineFeedList", "offline")
 
     }
 }
@@ -460,12 +406,22 @@ val feedFilterPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(feedListHooksPatch, settingsPatch)
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,
             "invoke-static {}, Lapp/morphe/extension/tiktok/settings/SettingsStatus;->enableFeedFilter()V",
         )
+
+        // Links open through this router before anything else runs, so the linked video is
+        // recorded here and the like filter lets it through.
+        mutableClassDefByOrNull("Lcom/ss/android/ugc/aweme/deeplink/AppLinkHandlerV2;")
+            ?.methods
+            ?.firstOrNull { it.name == "onCreate" && it.parameterTypes == listOf("Landroid/os/Bundle;") }
+            ?.addInstruction(
+                0,
+                "invoke-static/range { p0 .. p0 }, Lapp/morphe/extension/tiktok/feedfilter/LinkOpenExemption;->onActivity(Landroid/app/Activity;)V",
+            )
 
         DiscoverBannerResponseFingerprint.method.filterResponseAfterCast(
             "Lcom/ss/android/ugc/aweme/discover/model/BannerList;",
@@ -539,7 +495,7 @@ val hideAiContentPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(feedListHooksPatch, settingsPatch)
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,
@@ -555,7 +511,7 @@ val hideFypSlopPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(feedListHooksPatch, settingsPatch)
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,
@@ -611,6 +567,28 @@ private fun MutableMethod.filterChainedCacheDelivery(
     val payloadRead = getInstruction<TwoRegisterInstruction>(payloadReadIndex)
     val payloadRegister = payloadRead.registerA
     val resultRegister = payloadRead.registerB
+
+    // 47.5.3 inverted the branch: a null payload jumps to the next-source path instead of
+    // falling through to it. Reject filtered entries by taking that same jump.
+    if (instructions.getOrNull(payloadReadIndex + 1)?.opcode == Opcode.IF_EQZ) {
+        val nextSourceTarget = (getInstruction(payloadReadIndex + 1) as BuilderOffsetInstruction)
+            .target.location.instruction
+            ?: throw PatchException("Chained cache delivery payload branch has no target")
+        addInstructionsWithLabels(
+            payloadReadIndex + 2,
+            """
+                iget-object v$payloadRegister, v$resultRegister, $cachePayloadField
+                iget-object v$payloadRegister, v$payloadRegister, $cachedAwemeField
+                invoke-static/range {v$payloadRegister .. v$payloadRegister}, $EXTENSION_CLASS_DESCRIPTOR->shouldKeepCachedAweme(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z
+                move-result v$payloadRegister
+                if-eqz v$payloadRegister, :morphe_cache_chain_next_source
+                iget-object v$payloadRegister, v$resultRegister, $cachePayloadField
+            """,
+            ExternalLabel("morphe_cache_chain_next_source", nextSourceTarget),
+        )
+        return
+    }
+
     val nextSourceIndex = payloadReadIndex + 2
     if (instructions.getOrNull(payloadReadIndex + 1)?.opcode != Opcode.IF_NEZ) {
         throw PatchException("Chained cache delivery no longer branches on its payload")
@@ -648,14 +626,17 @@ private fun MutableMethod.filterReachBottomCacheDelivery(
     cachePayloadField: FieldReference,
     cachedAwemeField: FieldReference,
     cacheSuccessField: FieldReference,
-    cacheSourceField: FieldReference,
-    cacheListField: FieldReference,
+    copiedFields: List<FieldReference>,
     cacheConstructor: MethodReference,
 ) {
     val localRegisters = (implementation?.registerCount ?: 0) - parameterTypes.size - 1
-    if (AccessFlags.STATIC.isSet(accessFlags) || localRegisters < 5) {
-        throw PatchException("Reach-bottom cache callback needs five local registers")
+    if (AccessFlags.STATIC.isSet(accessFlags) || localRegisters < copiedFields.size + 3) {
+        throw PatchException("Reach-bottom cache callback needs ${copiedFields.size + 3} local registers")
     }
+    val copyReads = copiedFields.withIndex().joinToString("\n") { (index, field) ->
+        "iget-object v${index + 3}, v0, $field"
+    }
+    val copyArguments = "v0 .. v${copiedFields.size + 2}"
     addInstructions(
         0,
         """
@@ -668,16 +649,44 @@ private fun MutableMethod.filterReachBottomCacheDelivery(
             invoke-static/range {v1 .. v1}, $EXTENSION_CLASS_DESCRIPTOR->shouldKeepCachedAweme(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z
             move-result v1
             if-nez v1, :morphe_keep_reach_bottom_cache_result
-            iget-object v3, v0, $cacheSourceField
-            iget-object v4, v0, $cacheListField
+            $copyReads
             new-instance v0, ${cachePayloadField.definingClass}
             const/4 v1, 0x0
-            invoke-direct {v0, v1, v2, v3, v4}, $cacheConstructor
+            invoke-direct/range {$copyArguments}, $cacheConstructor
             move-object/16 p1, v0
             :morphe_keep_reach_bottom_cache_result
             nop
         """,
     )
+}
+
+private fun MutableMethod.filterColdStartCacheStores(filterMethod: String, labelPrefix: String) {
+    val cacheStoreIndices = implementation!!.instructions.withIndex()
+        .filter { (_, instruction) ->
+            instruction.opcode == Opcode.SPUT_OBJECT &&
+                instruction.getReference<FieldReference>()?.type ==
+                "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;"
+        }
+        .map { it.index }
+        .toList()
+    if (cacheStoreIndices.isEmpty()) {
+        throw PatchException("Expected cached FeedItemList stores in $this")
+    }
+
+    cacheStoreIndices.asReversed().forEachIndexed { ordinal, storeIndex ->
+        val listRegister = getInstruction<OneRegisterInstruction>(storeIndex).registerA
+        addInstructionsWithLabels(
+            storeIndex,
+            """
+                invoke-static/range {v$listRegister .. v$listRegister}, $EXTENSION_CLASS_DESCRIPTOR->$filterMethod(Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;)Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;
+                move-result-object v$listRegister
+                if-nez v$listRegister, :morphe_keep_${labelPrefix}_cache_$ordinal
+                const/4 v$listRegister, 0x0
+                return v$listRegister
+            """,
+            ExternalLabel("morphe_keep_${labelPrefix}_cache_$ordinal", getInstruction(storeIndex)),
+        )
+    }
 }
 
 private fun MutableMethod.filterLateInsertedItems(payloadType: String) {
@@ -699,11 +708,15 @@ private fun MutableMethod.filterLateInsertedItems(payloadType: String) {
         )
     }
 
+    val parameters = parameterTypes.map(CharSequence::toString)
+    val sourceRegister = "p${parameters.indexOf("Ljava/lang/String;") + 1}"
+    val listRegister = "p${parameters.indexOf("Ljava/util/List;") + 1}"
+
     addInstructions(
         listStoreIndices.single(),
         """
-            invoke-static/range {p2 .. p3}, $EXTENSION_CLASS_DESCRIPTOR->filterLateInsertedItems(Ljava/lang/String;Ljava/util/List;)Ljava/util/List;
-            move-result-object p3
+            invoke-static {$sourceRegister, $listRegister}, $EXTENSION_CLASS_DESCRIPTOR->filterLateInsertedItems(Ljava/lang/String;Ljava/util/List;)Ljava/util/List;
+            move-result-object $listRegister
         """,
     )
 }

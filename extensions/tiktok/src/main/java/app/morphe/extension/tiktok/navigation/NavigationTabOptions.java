@@ -21,16 +21,16 @@ public final class NavigationTabOptions {
     private static final String RAW_PREFIX = "RAW:";
 
     public static final Option[] OPTIONS = {
-            new Option(HOT, "For You"),
-            new Option(EXPLORE, "Explore"),
-            new Option(FOLLOWING, "Following"),
-            new Option(MALL, "Shop"),
-            new Option(NEARBY, "Nearby / Local"),
-            new Option(FRIENDS, "Friends feed tab"),
-            new Option(LIVE, "Live"),
-            new Option(POPULAR, "Popular"),
-            new Option(STEM, "STEM feed"),
-            new Option(SERIES, "Drama / Series"),
+            new Option(HOT, "Рекомендации"),
+            new Option(EXPLORE, "Обзор"),
+            new Option(FOLLOWING, "Подписки"),
+            new Option(MALL, "Магазин"),
+            new Option(NEARBY, "Рядом"),
+            new Option(FRIENDS, "Друзья"),
+            new Option(LIVE, "LIVE"),
+            new Option(POPULAR, "Популярное"),
+            new Option(STEM, "STEM"),
+            new Option(SERIES, "Сериалы"),
     };
 
     private NavigationTabOptions() {

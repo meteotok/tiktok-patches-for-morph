@@ -31,8 +31,8 @@ public class MorpheTikTokAboutPreference extends Preference {
     public MorpheTikTokAboutPreference(Context context) {
         super(context);
 
-        setTitle("Support my work");
-        setSummary("If you enjoy these patches, I would really appreciate the support. It genuinely means a lot to me.");
+        setTitle("Поддержать автора");
+        setSummary("Если тебе нравятся эти патчи, поддержи автора оригинала — для него это много значит.");
         setIcon(SupportUi.createHeartDrawable());
 
         setOnPreferenceClickListener(pref -> {

@@ -18,7 +18,8 @@ private const val EXTENSION_CLASS_DESCRIPTOR =
     "Lapp/morphe/extension/tiktok/commentsort/CommentSortControls;"
 
 @Suppress("unused")
-val commentSortControlsPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val commentSortControlsPatch = bytecodePatch(
     name = "Comment sort controls",
     description = "Exposes TikTok's native full comment-sort sheet, including its hot, time, media, " +
         "and creator modes, instead of relying on rollout gates.",
@@ -26,6 +27,7 @@ val commentSortControlsPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch)
 
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

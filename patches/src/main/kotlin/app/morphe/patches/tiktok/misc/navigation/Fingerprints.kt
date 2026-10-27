@@ -4,14 +4,14 @@ import app.morphe.patcher.Fingerprint
 
 internal object TopTabModelListFingerprint : Fingerprint(
     definingClass = "/TabAbilityAssem;",
-    name = "W52",
+    name = "Oc2", // W52 on 46.2.3
     returnType = "Ljava/util/List;",
     parameters = listOf(),
 )
 
 internal object BottomTabModelListFingerprint : Fingerprint(
     definingClass = "/TabAbilityAssem;",
-    name = "OA",
+    name = "BB", // OA on 46.2.3
     returnType = "Ljava/util/List;",
     parameters = listOf(),
 )

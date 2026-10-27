@@ -1,0 +1,630 @@
+package app.morphe.extension.tiktok.prism;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PixelFormat;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.graphics.drawable.Drawable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ReplacementSpan;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import app.morphe.extension.shared.Logger;
+import app.morphe.extension.shared.Utils;
+import app.morphe.extension.tiktok.settings.Settings;
+
+/**
+ * Nickname badges handed out from the Admin Panel.
+ * <p>
+ * Badges come from two places: the local list edited in the Admin Panel (only this phone sees it)
+ * and a plain text file in the Prism repository, so everyone running this build sees the
+ * badges the repository owner pushes there.
+ */
+@SuppressWarnings("unused")
+public final class PrismBadges {
+    public static final String REMOTE_URL =
+            "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/claude/project-thread-thdlg5/prism-badges.txt";
+    /** Same file through jsDelivr, for networks where raw.githubusercontent.com is blocked. */
+    private static final String REMOTE_MIRROR_URL =
+            "https://cdn.jsdelivr.net/gh/meteotok/tiktok-patches-for-morph@claude/project-thread-thdlg5/prism-badges.txt";
+    private static final long REMOTE_REFRESH_MS = 30L * 60 * 1000;
+
+    public enum Type {
+        VERIFIED("verified", "Галочка", "\u2705"),
+        CROWN("crown", "Корона", "\uD83D\uDC51"),
+        STAR("star", "Звезда", "\u2B50"),
+        HEART("heart", "Сердечко", "\uD83D\uDC96"),
+        BOLT("bolt", "Молния", "\u26A1"),
+        COMET("comet", "Комета", "\u2604\uFE0F"),
+        DIAMOND("diamond", "Бриллиант", "\uD83D\uDC8E"),
+        FLAME("flame", "Пламя", "\uD83D\uDD25"),
+        PUMPKIN("pumpkin", "Тыква", "\uD83C\uDF83"),
+        GHOST("ghost", "Призрак", "\uD83D\uDC7B"),
+        SAKURA("sakura", "Сакура", "\uD83C\uDF38");
+
+        public final String key;
+        public final String title;
+        /** Shown after the name wherever TikTok draws it, Compose screens included. */
+        public final String emoji;
+
+        Type(String key, String title, String emoji) {
+            this.key = key;
+            this.title = title;
+            this.emoji = emoji;
+        }
+
+        @Nullable
+        public static Type fromKey(String key) {
+            if (key == null) {
+                return null;
+            }
+            String normalized = key.trim().toLowerCase(Locale.ROOT);
+            for (Type type : values()) {
+                if (type.key.equals(normalized)) {
+                    return type;
+                }
+            }
+            return null;
+        }
+    }
+
+    private static volatile Map<String, Type> remote = Collections.emptyMap();
+    private static volatile Map<String, Type> local;
+    private static volatile String localSource;
+    private static volatile boolean remoteRequested;
+
+    private PrismBadges() {
+    }
+
+    public static boolean enabled() {
+        try {
+            return Settings.PRISM_BADGES.get();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** Normalizes a nickname: no leading @, no surrounding blanks, lower case. */
+    public static String normalize(CharSequence value) {
+        String text = value.toString().trim();
+        while (text.startsWith("@")) {
+            text = text.substring(1);
+        }
+        return text.toLowerCase(Locale.ROOT);
+    }
+
+    // region storage
+
+    public static Map<String, Type> localBadges() {
+        String source = Settings.PRISM_BADGE_LIST.get();
+        Map<String, Type> current = local;
+        if (current != null && source.equals(localSource)) {
+            return current;
+        }
+        current = Collections.unmodifiableMap(parse(source));
+        local = current;
+        localSource = source;
+        return current;
+    }
+
+    public static Map<String, Type> remoteBadges() {
+        return remote;
+    }
+
+    public static void put(String nickname, Type type) {
+        Map<String, Type> badges = new LinkedHashMap<>(localBadges());
+        badges.put(normalize(nickname), type);
+        save(badges);
+    }
+
+    public static void remove(String nickname) {
+        Map<String, Type> badges = new LinkedHashMap<>(localBadges());
+        badges.remove(normalize(nickname));
+        save(badges);
+    }
+
+    private static void save(Map<String, Type> badges) {
+        Settings.PRISM_BADGE_LIST.save(serialize(badges));
+        PrismUi.badgesChanged();
+    }
+
+    /** One line per badge, the same format as the repository file. */
+    public static String serialize(Map<String, Type> badges) {
+        StringBuilder builder = new StringBuilder();
+        for (Map.Entry<String, Type> entry : badges.entrySet()) {
+            if (builder.length() > 0) {
+                builder.append('\n');
+            }
+            builder.append(entry.getKey()).append(" = ").append(entry.getValue().key);
+        }
+        return builder.toString();
+    }
+
+    /** Parses "nickname = type" lines; '#' starts a comment. */
+    public static Map<String, Type> parse(String source) {
+        Map<String, Type> badges = new LinkedHashMap<>();
+        if (source == null) {
+            return badges;
+        }
+        for (String rawLine : source.split("[\\n;]")) {
+            String line = rawLine;
+            int comment = line.indexOf('#');
+            if (comment >= 0) {
+                line = line.substring(0, comment);
+            }
+            int separator = line.indexOf('=');
+            if (separator <= 0) {
+                continue;
+            }
+            String nickname = normalize(line.substring(0, separator));
+            Type type = Type.fromKey(line.substring(separator + 1));
+            if (!nickname.isEmpty() && type != null) {
+                badges.put(nickname, type);
+            }
+        }
+        return badges;
+    }
+
+    @Nullable
+    public static Type lookup(CharSequence text) {
+        if (text == null || text.length() == 0 || text.length() > 40) {
+            return null;
+        }
+        String key = normalize(text);
+        if (key.isEmpty()) {
+            return null;
+        }
+        Type type = localBadges().get(key);
+        return type != null ? type : remote.get(key);
+    }
+
+    public static boolean hasAnyBadges() {
+        return !localBadges().isEmpty() || !remote.isEmpty();
+    }
+
+    // endregion
+
+    // region name hook
+
+    /**
+     * Invisible word joiner in front of the badge emoji: tells our own badges apart from emoji
+     * people put in their names, so only ours are swapped for the sticker image.
+     */
+    static final String MARKER = "\u2060";
+
+    /** Account handles learned from profile models, by numeric user id, for DMs that only carry the id. */
+    private static final Map<String, String> handlesByUid = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, java.lang.reflect.Method[]> idGetters = new ConcurrentHashMap<>();
+    private static final String[] HANDLE_GETTERS = {"getUniqueId", "getUsername"};
+    private static final String[] UID_GETTERS = {"getUid"};
+
+    /**
+     * Called by the "Prism UI" patch at the end of TikTok's user model name getters
+     * (feed, profile, comments, messages). Appends the badge emoji after the name.
+     */
+    public static String nickname(String name, Object owner) {
+        try {
+            if (name == null || owner == null || Utils.getContext() == null
+                    || !enabled() || !hasAnyBadges()) {
+                return name;
+            }
+            java.lang.reflect.Method[] getters = idGetters.get(owner.getClass());
+            if (getters == null) {
+                getters = new java.lang.reflect.Method[]{
+                        findGetter(owner.getClass(), HANDLE_GETTERS),
+                        findGetter(owner.getClass(), UID_GETTERS)
+                };
+                idGetters.put(owner.getClass(), getters);
+            }
+            String handle = getters[0] == null ? null : (String) getters[0].invoke(owner);
+            String uid = getters[1] == null ? null : (String) getters[1].invoke(owner);
+            if (handle != null && !handle.isEmpty() && uid != null && !uid.isEmpty()) {
+                handlesByUid.put(uid, handle);
+            } else if ((handle == null || handle.isEmpty()) && uid != null) {
+                handle = handlesByUid.get(uid);
+            }
+            Type type = null;
+            if (handle != null && !handle.isEmpty()) {
+                type = lookup(handle);
+            }
+            if (type == null && uid != null && !uid.isEmpty()) {
+                type = lookup(uid);
+            }
+            if (type == null) {
+                // Badges granted by display name instead of @handle.
+                type = lookup(name);
+            }
+            if (type == null || name.endsWith(type.emoji)) {
+                return name;
+            }
+            return name + " " + MARKER + type.emoji;
+        } catch (Throwable ignored) {
+            return name;
+        }
+    }
+
+    @Nullable
+    private static java.lang.reflect.Method findGetter(Class<?> type, String[] names) {
+        for (String getterName : names) {
+            try {
+                java.lang.reflect.Method method = type.getMethod(getterName);
+                if (method.getReturnType() == String.class) {
+                    return method;
+                }
+            } catch (Throwable ignored) {
+                // Try the next name.
+            }
+        }
+        return null;
+    }
+
+    // endregion
+
+    // region remote list
+
+    public static void refreshRemote(boolean force) {
+        if (!Settings.PRISM_REMOTE_BADGES.get()) {
+            remote = Collections.emptyMap();
+            return;
+        }
+        if (remote.isEmpty()) {
+            remote = Collections.unmodifiableMap(parse(Settings.PRISM_REMOTE_BADGE_CACHE.get()));
+        }
+        long last = Settings.PRISM_REMOTE_BADGE_FETCHED.get();
+        if (remote.isEmpty() && !remoteRequested) {
+            // Nothing cached yet (or an older build saw an empty list): ask right away.
+            force = true;
+        }
+        if (!force && (remoteRequested || System.currentTimeMillis() - last < REMOTE_REFRESH_MS)) {
+            return;
+        }
+        remoteRequested = true;
+        Thread thread = new Thread(PrismBadges::fetchRemote, "Prism-badges");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private static void fetchRemote() {
+        if (!fetchRemote(REMOTE_URL)) {
+            fetchRemote(REMOTE_MIRROR_URL);
+        }
+    }
+
+    /** Returns true when the server answered for sure (list or no list). */
+    private static boolean fetchRemote(String url) {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(8000);
+            connection.setUseCaches(false);
+            int code = connection.getResponseCode();
+            if (code == 404) {
+                // No file published yet: nothing to show.
+                Settings.PRISM_REMOTE_BADGE_FETCHED.save(System.currentTimeMillis());
+                return true;
+            }
+            if (code != 200) {
+                return false;
+            }
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null && body.length() < 64 * 1024) {
+                    body.append(line).append('\n');
+                }
+            }
+            String text = body.toString();
+            remote = Collections.unmodifiableMap(parse(text));
+            Settings.PRISM_REMOTE_BADGE_CACHE.save(serialize(remote));
+            Settings.PRISM_REMOTE_BADGE_FETCHED.save(System.currentTimeMillis());
+            PrismUi.badgesChanged();
+            return true;
+        } catch (Throwable throwable) {
+            Logger.printDebug(() -> "Prism: badge list fetch failed: " + throwable);
+            return false;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    // endregion
+
+    // region text decoration
+
+    /** Swaps the badge emoji our name hook added for the sticker image. Returns true if changed. */
+    public static boolean decorate(TextView view) {
+        CharSequence text = view.getText();
+        if (text == null || text.length() < 3) {
+            return false;
+        }
+        if (text instanceof Spanned && ((Spanned) text).getSpans(0, text.length(), BadgeSpan.class).length > 0) {
+            return false;
+        }
+        String string = text.toString();
+        int marker = string.lastIndexOf(MARKER);
+        if (marker < 0) {
+            return false;
+        }
+        String emoji = string.substring(marker + MARKER.length());
+        for (Type type : Type.values()) {
+            if (type.emoji.equals(emoji)) {
+                if (bitmap(type) == null) {
+                    return false;
+                }
+                SpannableStringBuilder builder = new SpannableStringBuilder(text);
+                builder.setSpan(new BadgeSpan(type), marker, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                view.setText(builder);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final Map<Type, Bitmap> bitmaps = new ConcurrentHashMap<>();
+    private static final Map<Type, Boolean> missing = new ConcurrentHashMap<>();
+
+    /** The sticker image bundled by the "Nickname badges" patch, or null. */
+    @Nullable
+    static Bitmap bitmap(Type type) {
+        Bitmap cached = bitmaps.get(type);
+        if (cached != null || missing.containsKey(type)) {
+            return cached;
+        }
+        try {
+            android.content.Context context = Utils.getContext();
+            if (context == null) {
+                return null;
+            }
+            int id = context.getResources().getIdentifier("prism_badge_" + type.key, "drawable",
+                    context.getPackageName());
+            Bitmap bitmap = id == 0 ? null : BitmapFactory.decodeResource(context.getResources(), id);
+            if (bitmap == null) {
+                missing.put(type, true);
+                return null;
+            }
+            bitmaps.put(type, bitmap);
+            return bitmap;
+        } catch (Throwable ignored) {
+            missing.put(type, true);
+            return null;
+        }
+    }
+
+    /** Draws the badge after the nickname, vertically centered on the text. */
+    public static final class BadgeSpan extends ReplacementSpan {
+        private final Type type;
+
+        BadgeSpan(Type type) {
+            this.type = type;
+        }
+
+        private static int size(Paint paint) {
+            return Math.round(paint.getTextSize() * 1.08f);
+        }
+
+        @Override
+        public int getSize(@NonNull Paint paint, CharSequence text, int start, int end, @Nullable Paint.FontMetricsInt fm) {
+            int size = size(paint);
+            return size + Math.round(paint.getTextSize() * 0.28f);
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas, CharSequence text, int start, int end, float x,
+                         int top, int y, int bottom, @NonNull Paint paint) {
+            int size = size(paint);
+            Paint.FontMetricsInt metrics = paint.getFontMetricsInt();
+            float centerY = y + (metrics.ascent + metrics.descent) / 2f;
+            float left = x + paint.getTextSize() * 0.24f;
+            BadgeDrawable drawable = new BadgeDrawable(type);
+            drawable.setBounds(Math.round(left), Math.round(centerY - size / 2f),
+                    Math.round(left + size), Math.round(centerY + size / 2f));
+            drawable.draw(canvas);
+        }
+    }
+
+    /**
+     * Rosette seal filled with the gradient of the selected app icon and a white glyph,
+     * like a verified mark.
+     */
+    public static final class BadgeDrawable extends Drawable {
+        private final Type type;
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint glyph = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
+
+        public BadgeDrawable(Type type) {
+            this.type = type;
+            glyph.setColor(Color.WHITE);
+            glyph.setStrokeCap(Paint.Cap.ROUND);
+            glyph.setStrokeJoin(Paint.Join.ROUND);
+            rim.setStyle(Paint.Style.STROKE);
+            rim.setColor(Color.argb(150, 255, 255, 255));
+        }
+
+        private final Paint image = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            Bitmap sticker = bitmap(type);
+            if (sticker != null) {
+                canvas.drawBitmap(sticker, null, getBounds(), image);
+                return;
+            }
+            RectF bounds = new RectF(getBounds());
+            float cx = bounds.centerX();
+            float cy = bounds.centerY();
+            float radius = Math.min(bounds.width(), bounds.height()) / 2f;
+            int[] colors = PrismIcons.current().badgeColors();
+
+            // Soft glow behind the seal.
+            glow.setColor(PrismTheme.withAlpha(colors[0], 0.35f));
+            canvas.drawCircle(cx, cy, radius * 0.98f, glow);
+
+            fill.setShader(new LinearGradient(bounds.left, bounds.top, bounds.right, bounds.bottom,
+                    colors[0], colors[1], Shader.TileMode.CLAMP));
+            rosette(cx, cy, radius * 0.92f, radius * 0.78f, 12);
+            canvas.drawPath(path, fill);
+            rim.setStrokeWidth(Math.max(1f, radius * 0.07f));
+            canvas.drawPath(path, rim);
+
+            // Glass shine on the upper half.
+            Paint shine = new Paint(Paint.ANTI_ALIAS_FLAG);
+            shine.setShader(new LinearGradient(cx, bounds.top, cx, cy,
+                    Color.argb(110, 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP));
+            canvas.drawCircle(cx, cy - radius * 0.12f, radius * 0.6f, shine);
+
+            drawGlyph(canvas, cx, cy, radius * 0.5f);
+        }
+
+        private void rosette(float cx, float cy, float outer, float inner, int points) {
+            path.reset();
+            int steps = points * 2;
+            for (int i = 0; i <= steps; i++) {
+                double angle = Math.PI * i / points - Math.PI / 2;
+                float r = (i % 2 == 0) ? outer : inner;
+                float px = (float) (cx + Math.cos(angle) * r);
+                float py = (float) (cy + Math.sin(angle) * r);
+                if (i == 0) {
+                    path.moveTo(px, py);
+                } else {
+                    path.lineTo(px, py);
+                }
+            }
+            path.close();
+        }
+
+        private void drawGlyph(Canvas canvas, float cx, float cy, float r) {
+            Path g = new Path();
+            switch (type) {
+                case VERIFIED:
+                    glyph.setStyle(Paint.Style.STROKE);
+                    glyph.setStrokeWidth(r * 0.32f);
+                    g.moveTo(cx - r * 0.62f, cy + r * 0.02f);
+                    g.lineTo(cx - r * 0.16f, cy + r * 0.48f);
+                    g.lineTo(cx + r * 0.66f, cy - r * 0.42f);
+                    canvas.drawPath(g, glyph);
+                    break;
+                case CROWN:
+                    glyph.setStyle(Paint.Style.FILL);
+                    g.moveTo(cx - r * 0.78f, cy + r * 0.5f);
+                    g.lineTo(cx - r * 0.86f, cy - r * 0.42f);
+                    g.lineTo(cx - r * 0.36f, cy + r * 0.02f);
+                    g.lineTo(cx, cy - r * 0.62f);
+                    g.lineTo(cx + r * 0.36f, cy + r * 0.02f);
+                    g.lineTo(cx + r * 0.86f, cy - r * 0.42f);
+                    g.lineTo(cx + r * 0.78f, cy + r * 0.5f);
+                    g.close();
+                    canvas.drawPath(g, glyph);
+                    break;
+                case STAR:
+                    glyph.setStyle(Paint.Style.FILL);
+                    for (int i = 0; i <= 10; i++) {
+                        double angle = Math.PI * i / 5 - Math.PI / 2;
+                        float rr = (i % 2 == 0) ? r * 0.92f : r * 0.4f;
+                        float px = (float) (cx + Math.cos(angle) * rr);
+                        float py = (float) (cy + Math.sin(angle) * rr + r * 0.06f);
+                        if (i == 0) {
+                            g.moveTo(px, py);
+                        } else {
+                            g.lineTo(px, py);
+                        }
+                    }
+                    g.close();
+                    canvas.drawPath(g, glyph);
+                    break;
+                case HEART:
+                    glyph.setStyle(Paint.Style.FILL);
+                    g.moveTo(cx, cy + r * 0.72f);
+                    g.cubicTo(cx - r * 1.15f, cy - r * 0.05f, cx - r * 0.55f, cy - r * 0.98f, cx, cy - r * 0.36f);
+                    g.cubicTo(cx + r * 0.55f, cy - r * 0.98f, cx + r * 1.15f, cy - r * 0.05f, cx, cy + r * 0.72f);
+                    g.close();
+                    canvas.drawPath(g, glyph);
+                    break;
+                case BOLT:
+                    glyph.setStyle(Paint.Style.FILL);
+                    g.moveTo(cx + r * 0.18f, cy - r * 0.9f);
+                    g.lineTo(cx - r * 0.56f, cy + r * 0.12f);
+                    g.lineTo(cx - r * 0.02f, cy + r * 0.12f);
+                    g.lineTo(cx - r * 0.2f, cy + r * 0.9f);
+                    g.lineTo(cx + r * 0.58f, cy - r * 0.16f);
+                    g.lineTo(cx + r * 0.04f, cy - r * 0.16f);
+                    g.close();
+                    canvas.drawPath(g, glyph);
+                    break;
+                case COMET:
+                default:
+                    glyph.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(cx + r * 0.22f, cy + r * 0.22f, r * 0.42f, glyph);
+                    glyph.setStyle(Paint.Style.STROKE);
+                    glyph.setStrokeWidth(r * 0.2f);
+                    canvas.drawLine(cx - r * 0.75f, cy - r * 0.75f, cx - r * 0.05f, cy - r * 0.05f, glyph);
+                    canvas.drawLine(cx - r * 0.2f, cy - r * 0.85f, cx + r * 0.2f, cy - r * 0.45f, glyph);
+                    canvas.drawLine(cx - r * 0.85f, cy - r * 0.2f, cx - r * 0.45f, cy + r * 0.2f, glyph);
+                    break;
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            fill.setAlpha(alpha);
+            glyph.setAlpha(alpha);
+        }
+
+        @Override
+        public void setColorFilter(@Nullable ColorFilter colorFilter) {
+            fill.setColorFilter(colorFilter);
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public int getIntrinsicWidth() {
+            return 64;
+        }
+
+        @Override
+        public int getIntrinsicHeight() {
+            return 64;
+        }
+    }
+
+    // endregion
+
+    static Map<String, Type> merged() {
+        Map<String, Type> all = new HashMap<>(remote);
+        all.putAll(localBadges());
+        return all;
+    }
+}

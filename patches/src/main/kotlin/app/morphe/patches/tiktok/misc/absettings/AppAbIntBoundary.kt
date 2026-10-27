@@ -11,8 +11,9 @@ import app.morphe.patcher.patch.BytecodePatchContext
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 
-internal const val APP_AB_DESCRIPTOR = "LX/0BYX;"
-internal const val APP_AB_INT_METHOD = "LJFF"
+// TikTok 47.5.3 names (46.2.3: LX/0BYX;->LJFF).
+internal const val APP_AB_DESCRIPTOR = "LX/031i;"
+internal const val APP_AB_INT_METHOD = "LJIIJJI"
 internal const val APP_AB_INT_KEY_REGISTER = "p3"
 internal val APP_AB_INT_PARAMETERS = listOf("I", "I", "Ljava/lang/String;", "Z")
 

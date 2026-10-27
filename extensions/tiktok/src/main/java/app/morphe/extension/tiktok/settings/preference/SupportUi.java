@@ -42,7 +42,7 @@ final class SupportUi {
                 0
         );
         pill.setBackground(new SupportBackgroundDrawable(context, 0, 0, 17));
-        pill.setContentDescription("Support Metra patches");
+        pill.setContentDescription("Поддержать автора Metra patches");
         pill.setOnClickListener(view -> openSupport());
 
         ImageView heart = new ImageView(context);
@@ -50,7 +50,7 @@ final class SupportUi {
         int iconSize = SettingsUi.dp(context, 16);
         pill.addView(heart, new LinearLayout.LayoutParams(iconSize, iconSize));
 
-        TextView label = SettingsUi.text(context, "Support", 13.5f, SettingsUi.ACCENT, 1);
+        TextView label = SettingsUi.text(context, "Поддержать", 13.5f, SettingsUi.ACCENT, 1);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT

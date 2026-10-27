@@ -35,7 +35,7 @@ public final class SettingsHeaderPreference extends Preference {
         return new SettingsHeaderPreference(
                 context,
                 Kind.MASTER,
-                "Settings",
+                "Prism",
                 null,
                 backAction
         );
@@ -77,84 +77,43 @@ public final class SettingsHeaderPreference extends Preference {
     }
 
     private View createMasterHeader() {
-        Context context = getContext();
-        LinearLayout container = new LinearLayout(context);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(
-                SettingsUi.dp(context, 8),
-                SettingsUi.dp(context, 18),
-                SettingsUi.dp(context, 22),
-                SettingsUi.dp(context, 10)
-        );
-        container.setBackgroundColor(SettingsUi.background());
+        return createTopBar();
+    }
 
-        LinearLayout topRow = new LinearLayout(context);
-        topRow.setGravity(Gravity.CENTER_VERTICAL);
-        topRow.setOrientation(LinearLayout.HORIZONTAL);
+    private View createSectionHeader() {
+        return createTopBar();
+    }
+
+    /** Top bar like TikTok's settings screens: back arrow and a centered bold title. */
+    private View createTopBar() {
+        Context context = getContext();
+        android.widget.FrameLayout bar = new android.widget.FrameLayout(context);
+        bar.setMinimumHeight(SettingsUi.dp(context, 52));
+        bar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
 
         ImageView back = new ImageView(context);
-        back.setContentDescription("Back");
+        back.setContentDescription("Назад");
         back.setImageDrawable(new BackDrawable());
         back.setOnClickListener(view -> {
             if (backAction != null) {
                 backAction.run();
             }
         });
-        int buttonSize = SettingsUi.dp(context, 40);
-        topRow.addView(back, new LinearLayout.LayoutParams(buttonSize, buttonSize));
-
-        TextView kicker = SettingsUi.text(context, "METRA PATCHES", 12.5f, SettingsUi.ACCENT, 1);
-        LinearLayout.LayoutParams kickerParams = new LinearLayout.LayoutParams(0, -2, 1);
-        kickerParams.leftMargin = SettingsUi.dp(context, 4);
-        topRow.addView(kicker, kickerParams);
-        topRow.addView(createSupportPill(context), new LinearLayout.LayoutParams(-2, -2));
-        container.addView(topRow, new LinearLayout.LayoutParams(-1, -2));
-
-        TextView title = SettingsUi.text(context, heading, 32, SettingsUi.textPrimary(), 1);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
-        titleParams.leftMargin = SettingsUi.dp(context, 14);
-        titleParams.topMargin = SettingsUi.dp(context, 2);
-        container.addView(title, titleParams);
-
-        TextView menuLabel = SettingsUi.text(context, "MENUS", 12.5f, SettingsUi.textDisabled(), 1);
-        LinearLayout.LayoutParams menuLabelParams = new LinearLayout.LayoutParams(-1, -2);
-        menuLabelParams.leftMargin = SettingsUi.dp(context, 14);
-        menuLabelParams.topMargin = SettingsUi.dp(context, 18);
-        container.addView(menuLabel, menuLabelParams);
-        return container;
-    }
-
-    private View createSectionHeader() {
-        Context context = getContext();
-        LinearLayout container = new LinearLayout(context);
-        container.setGravity(Gravity.CENTER_VERTICAL);
-        container.setOrientation(LinearLayout.HORIZONTAL);
-        container.setMinimumHeight(SettingsUi.dp(context, 56));
-        container.setPadding(
-                SettingsUi.dp(context, 8),
-                0,
-                SettingsUi.dp(context, 16),
-                0
-        );
-        container.setBackgroundColor(SettingsUi.background());
-        container.setOnClickListener(view -> {
-            if (backAction != null) {
-                backAction.run();
-            }
-        });
-
-        ImageView back = new ImageView(context);
-        back.setContentDescription("Back");
-        back.setImageDrawable(new BackDrawable());
-        int buttonSize = SettingsUi.dp(context, 40);
-        container.addView(back, new LinearLayout.LayoutParams(buttonSize, buttonSize));
+        int buttonSize = SettingsUi.dp(context, 48);
+        android.widget.FrameLayout.LayoutParams backParams =
+                new android.widget.FrameLayout.LayoutParams(buttonSize, buttonSize, Gravity.START | Gravity.CENTER_VERTICAL);
+        backParams.leftMargin = SettingsUi.dp(context, 4);
+        bar.addView(back, backParams);
 
         TextView title = SettingsUi.text(context, heading, 17, SettingsUi.textPrimary(), 1);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, -2, 1);
-        titleParams.leftMargin = SettingsUi.dp(context, 4);
-        container.addView(title, titleParams);
-        container.addView(createSupportPill(context), new LinearLayout.LayoutParams(-2, -2));
-        return container;
+        title.setGravity(Gravity.CENTER);
+        title.setSingleLine(true);
+        android.widget.FrameLayout.LayoutParams titleParams =
+                new android.widget.FrameLayout.LayoutParams(-2, -2, Gravity.CENTER);
+        titleParams.leftMargin = SettingsUi.dp(context, 56);
+        titleParams.rightMargin = SettingsUi.dp(context, 56);
+        bar.addView(title, titleParams);
+        return bar;
     }
 
     private View createSupportPill(Context context) {
@@ -170,7 +129,7 @@ public final class SettingsHeaderPreference extends Preference {
                 SettingsUi.dp(context, 22),
                 SettingsUi.dp(context, 8)
         );
-        caption.setBackgroundColor(SettingsUi.background());
+        caption.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         return caption;
     }
 

@@ -22,12 +22,13 @@ private const val FEATURE_CONTROLS_CLASS_DESCRIPTOR =
 @Suppress("unused")
 val longPressSpeedLockPatch = bytecodePatch(
     name = "Hold-and-slide 2x lock",
-    description = "Enables TikTok's native hold, slide down, and release gesture to lock 2x speed.",
+    description = "Holding anywhere on a video speeds it up to 2x instead of opening the long-press menu, " +
+        "and enables TikTok's native hold, slide down, and release gesture to lock 2x speed.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
 
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
@@ -48,6 +49,23 @@ val longPressSpeedLockPatch = bytecodePatch(
                 lookupIndex + 2,
                 """
                     invoke-static {v$resultRegister}, $FEATURE_CONTROLS_CLASS_DESCRIPTOR->overrideLongPressSpeedUpEnabled(Z)Z
+                    move-result v$resultRegister
+                """,
+            )
+        }
+
+        LongPressSpeedUpWidthRatioFingerprint.method.let { method ->
+            val lookupIndex = method.indexOfFirstInstructionOrThrow {
+                getReference<MethodReference>()?.let { reference ->
+                    reference.parameterTypes == listOf("I", "Ljava/lang/String;", "Z", "F") &&
+                        reference.returnType == "F"
+                } == true
+            }
+            val resultRegister = method.getInstruction<OneRegisterInstruction>(lookupIndex + 1).registerA
+            method.addInstructions(
+                lookupIndex + 2,
+                """
+                    invoke-static {v$resultRegister}, $FEATURE_CONTROLS_CLASS_DESCRIPTOR->overrideLongPressSpeedUpWidthRatio(F)F
                     move-result v$resultRegister
                 """,
             )

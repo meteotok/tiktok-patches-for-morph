@@ -44,12 +44,12 @@ private data class OpenDebugTargets(
 @Suppress("unused")
 val settingsPatch = bytecodePatch(
     name = "Settings",
-    description = "Adds the Metra patches settings menu to TikTok. Supports TikTok 46.2.3.",
+    description = "Adds the Prism settings menu to the top of TikTok settings. Supports TikTok 47.5.3.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
 
     execute {
         addLegacySettingsEntryFallback()
@@ -267,8 +267,9 @@ val settingsPatch = bytecodePatch(
                 if (it.opcode != Opcode.INVOKE_STATIC) return@indexOfLast false
                 val reference = (it as? ReferenceInstruction)?.reference as? MethodReference
                     ?: return@indexOfLast false
-                reference.name in setOf("LJLJLLL", "LJLLLL") &&
-                    reference.parameterTypes == listOf("Ljava/util/Comparator;", "Ljava/lang/Iterable;") &&
+                // The sort helper is obfuscated (LJLJLLL / LJLLLL on older builds, LJZ on 47.5.3),
+                // so match it by signature only.
+                reference.parameterTypes == listOf("Ljava/util/Comparator;", "Ljava/lang/Iterable;") &&
                     reference.returnType == "Ljava/util/List;"
             } ?: -1
             if (sortedListIndex < 0) return false
@@ -352,7 +353,7 @@ val settingsPatch = bytecodePatch(
         val moveResultIndex = getStringInvokeIndex + 1
         val titleStringRegister = compose.getInstruction<OneRegisterInstruction>(moveResultIndex).registerA
 
-        composeMutable.addInstruction(moveResultIndex + 1, "const-string v$titleStringRegister, \"Metra patches\"")
+        composeMutable.addInstruction(moveResultIndex + 1, "const-string v$titleStringRegister, \"Prism\"")
 
         OpenDebugCellVmDefaultStateFingerprint.methodOrNull?.let { defaultState ->
             val constructorReference = defaultState.implementation!!.instructions.firstNotNullOfOrNull { instruction ->
@@ -373,18 +374,22 @@ val settingsPatch = bytecodePatch(
             }
             val constructor = stateConstructor
                 ?: throw PatchException("Settings: OpenDebug state constructor was not found.")
+            // The icon holder class is obfuscated and renamed between releases (LX/08EY; on 46.2.3,
+            // LX/05a2; on 47.5.3), so take it from the first static icon load in the constructor.
             val iconLoadIndex = constructor.indexOfFirstInstructionOrThrow {
-                opcode == Opcode.SGET_OBJECT && getReference<FieldReference>()?.type == "LX/08EY;"
+                opcode == Opcode.SGET_OBJECT && getReference<FieldReference>()?.type?.startsWith("LX/") == true
             }
+            val iconType = constructor.getInstruction<ReferenceInstruction>(iconLoadIndex)
+                .getReference<FieldReference>()!!.type
             val iconRegister = constructor.getInstruction<OneRegisterInstruction>(iconLoadIndex).registerA
             val tempRegister = constructor.findFreeRegister(iconLoadIndex + 1, iconRegister)
 
             constructor.addInstructions(
                 iconLoadIndex + 1,
                 """
-                    new-instance v$iconRegister, LX/08EY;
+                    new-instance v$iconRegister, $iconType
                     const v$tempRegister, 0x7f010088
-                    invoke-direct {v$iconRegister, v$tempRegister}, LX/08EY;-><init>(I)V
+                    invoke-direct {v$iconRegister, v$tempRegister}, $iconType-><init>(I)V
                 """,
             )
         }

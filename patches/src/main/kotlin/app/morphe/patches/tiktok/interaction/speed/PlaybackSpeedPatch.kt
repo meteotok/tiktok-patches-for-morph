@@ -25,7 +25,7 @@ val playbackSpeedPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4753())
 
     execute {
         PlaybackSpeedSelectionBoundaryFingerprint.method.addInstruction(
@@ -36,14 +36,13 @@ val playbackSpeedPatch = bytecodePatch(
 
         val controllerSetSpeed = PlayerControllerSetSpeedFingerprint.method
         val playerManagerSetSpeed = controllerSetSpeed.implementation!!.instructions
-            .firstNotNullOfOrNull { instruction ->
-                instruction.getReference<MethodReference>()?.takeIf { reference ->
-                    instruction.opcode == Opcode.INVOKE_INTERFACE &&
-                        reference.name == "setSpeed" &&
-                        reference.parameterTypes == listOf("F") &&
-                        reference.returnType == "V"
-                }
-            } ?: throw PatchException(
+            .lastOrNull { instruction ->
+                instruction.opcode == Opcode.INVOKE_INTERFACE &&
+                    instruction.getReference<MethodReference>()?.parameterTypes == listOf("F")
+            }
+            ?.getReference<MethodReference>()
+            ?.takeIf { reference -> reference.returnType == "V" }
+            ?: throw PatchException(
             "Playback speed: player-manager speed boundary was not resolved.",
         )
 
@@ -111,7 +110,7 @@ val playbackSpeedPatch = bytecodePatch(
             """
                 invoke-static {}, Lapp/morphe/extension/tiktok/speed/PlaybackSpeedPatch;->getPlaybackSpeed()F
                 move-result v0
-                invoke-virtual {p0, v0}, Lcom/ss/android/ugc/aweme/feed/controller/PlayerController;->setSpeed(F)V
+                invoke-virtual {p0, v0}, Lcom/ss/android/ugc/aweme/feed/controller/PlayerController;->${controllerSetSpeed.name}(F)V
             """,
         )
     }

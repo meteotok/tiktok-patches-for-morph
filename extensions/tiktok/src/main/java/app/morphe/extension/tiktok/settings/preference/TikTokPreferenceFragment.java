@@ -33,6 +33,8 @@ import app.morphe.extension.tiktok.featuregatelab.FeatureGateLabFragment;
 import app.morphe.extension.tiktok.featuregatelab.FeatureGateLabRuntime;
 import app.morphe.extension.tiktok.settings.Settings;
 import app.morphe.extension.tiktok.settings.SettingsStatus;
+import app.morphe.extension.tiktok.prism.PrismDialogs;
+import app.morphe.extension.tiktok.settings.preference.categories.AppearancePreferenceCategory;
 import app.morphe.extension.tiktok.settings.preference.categories.CommentsPreferenceCategory;
 import app.morphe.extension.tiktok.settings.preference.categories.DebugPreferenceCategory;
 import app.morphe.extension.tiktok.settings.preference.categories.DownloadsPreferenceCategory;
@@ -51,15 +53,16 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
     private static DownloadPathPreference pendingDownloadPathPreference;
 
     private enum Section {
-        FEED_FILTER("Feed controls", "Choose which posts appear in your feeds."),
-        FEED_NAVIGATION("Feed navigation", "Feed tabs, bottom tabs, and Tako AI."),
-        INTERFACE("Interface", "Promotions, popups, and publish dates."),
-        COMMENTS("Comments and translation", "Translation, reactions, copy options, and split view."),
-        DOWNLOADS("Downloads", "Path, watermark, and offline videos."),
-        REGION("Region spoof", "Change the region TikTok reads."),
-        SHARE_SHEET("Share sheet", "Send to, share via app, and video actions."),
-        BEHAVIOR("App behavior", "Sharing, playback, and gestures."),
-        DIAGNOSTICS("Diagnostics", "Logging, crash capture, and report export.");
+        APPEARANCE("Внешний вид", "Темы, иконка, liquid glass и бейджи."),
+        FEED_FILTER("Лента", "Что показывать в лентах: реклама, магазин, LIVE."),
+        FEED_NAVIGATION("Вкладки", "Верхние и нижние вкладки, Tako AI."),
+        INTERFACE("Интерфейс", "Промо, попапы и даты публикации."),
+        COMMENTS("Комментарии", "Перевод, реакции, копирование и разделённый экран."),
+        DOWNLOADS("Скачивание", "Папка, водяной знак и офлайн-видео."),
+        REGION("Подмена региона", "Какой регион видит TikTok."),
+        SHARE_SHEET("Меню «Поделиться»", "Отправка, приложения и действия с видео."),
+        BEHAVIOR("Поведение", "Ссылки, плеер и жесты."),
+        DIAGNOSTICS("Диагностика", "Логи, краши и экспорт отчёта.");
 
         final String title;
         final String description;
@@ -78,7 +81,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
     public static void openDownloadPathFolderPicker(DownloadPathPreference preference) {
         if (activeFragment == null) {
-            app.morphe.extension.shared.Utils.showToastShort("Folder picker is not available");
+            app.morphe.extension.shared.Utils.showToastShort("Выбор папки недоступен");
             return;
         }
 
@@ -91,7 +94,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             activeFragment.startActivityForResult(intent, REQUEST_DOWNLOAD_PATH_FOLDER);
         } catch (ActivityNotFoundException exception) {
             pendingDownloadPathPreference = null;
-            app.morphe.extension.shared.Utils.showToastLong("Folder picker is not available on this device");
+            app.morphe.extension.shared.Utils.showToastLong("Выбор папки недоступен на этом устройстве");
         }
     }
 
@@ -180,12 +183,12 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
         // Currently no resources can be compiled for TikTok (fails with aapt error).
         // So all TikTok Strings are hard coded in the extension.
-        restartDialogTitle = "Restart required";
-        restartDialogMessage = "Restart the app for this change to take effect.";
-        restartDialogButtonText = "Restart";
-        confirmDialogTitle = "Do you wish to proceed?";
+        restartDialogTitle = "Нужен перезапуск";
+        restartDialogMessage = "Перезапусти приложение, чтобы изменения вступили в силу.";
+        restartDialogButtonText = "Перезапустить";
+        confirmDialogTitle = "Продолжить?";
 
-        Utils.setIsDarkModeEnabled(isDarkModeEnabled(context));
+        SettingsUi.refreshTheme();
 
         PreferenceScreen preferenceScreen = getPreferenceManager().createPreferenceScreen(context);
         setPreferenceScreen(preferenceScreen);
@@ -204,10 +207,10 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
         ListView list = view.findViewById(android.R.id.list);
         if (list != null) {
-            list.setBackgroundColor(SettingsUi.background());
-            list.setCacheColorHint(SettingsUi.background());
-            list.setDivider(new ColorDrawable(SettingsUi.divider()));
-            list.setDividerHeight(1);
+            list.setBackground(SettingsUi.pageBackground(list.getContext()));
+            list.setCacheColorHint(android.graphics.Color.TRANSPARENT);
+            list.setDivider(new ColorDrawable(android.graphics.Color.TRANSPARENT));
+            list.setDividerHeight(0);
             list.setClipToPadding(false);
             list.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         }
@@ -217,8 +220,9 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             return;
         }
         Window window = activity.getWindow();
-        window.setStatusBarColor(SettingsUi.surface());
-        window.setNavigationBarColor(SettingsUi.surface());
+        window.setStatusBarColor(SettingsUi.theme().backgroundTop());
+        window.setNavigationBarColor(SettingsUi.theme().backgroundTop());
+        window.getDecorView().setBackground(SettingsUi.pageBackground(activity));
 
         View decor = window.getDecorView();
         int visibility = decor.getSystemUiVisibility();
@@ -254,6 +258,25 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
     private void createMasterMenu(Context context, PreferenceScreen screen) {
         screen.addPreference(SettingsHeaderPreference.master(context, this::closeSettings));
+
+        screen.addPreference(new SettingsGroupPreference(context, "Prism"));
+        addMenu(screen, Section.APPEARANCE, SettingsMenuPreference.Icon.PALETTE, countEnabled(
+                Settings.PRISM_GLASS_NAV.get(),
+                Settings.PRISM_BADGES.get()
+        ));
+        screen.addPreference(new SettingsMenuPreference(
+                context,
+                "Admin Panel",
+                "Выдача бейджей, вход по паролю",
+                SettingsMenuPreference.Icon.LOCK,
+                0,
+                preference -> {
+                    PrismDialogs.openAdminPanel(getActivity());
+                    return true;
+                }
+        ));
+
+        screen.addPreference(new SettingsGroupPreference(context, "Функции"));
 
         if (SettingsStatus.feedFilterEnabled || SettingsStatus.hideAiContentEnabled
                 || SettingsStatus.hideFypSlopEnabled) {
@@ -323,7 +346,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             screen.addPreference(new SettingsMenuPreference(
                     context,
                     "Feature Gate Lab",
-                    "Search and override gate flags",
+                    "Поиск и переопределение флагов",
                     SettingsMenuPreference.Icon.LAB,
                     0,
                     preference -> {
@@ -340,6 +363,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             ));
         }
 
+        screen.addPreference(new SettingsGroupPreference(context, "О моде"));
         screen.addPreference(new MorpheTikTokAboutPreference(context));
     }
 
@@ -392,6 +416,9 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             case DIAGNOSTICS:
                 category = new DebugPreferenceCategory(context, screen);
                 break;
+            case APPEARANCE:
+                category = new AppearancePreferenceCategory(context, screen);
+                break;
             case BEHAVIOR:
             default:
                 category = new ExtensionPreferenceCategory(context, screen);
@@ -423,7 +450,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
     private void openSection(Section section) {
         FragmentManager manager = getFragmentManager();
         if (manager == null || getId() == 0) {
-            Utils.showToastShort("Could not open settings section");
+            Utils.showToastShort("Не удалось открыть раздел");
             return;
         }
 
@@ -473,6 +500,9 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
             count++;
         }
         if (SettingsStatus.longPressSpeedLockEnabled && Settings.ENABLE_LONG_PRESS_SPEED_LOCK.get()) {
+            count++;
+        }
+        if (SettingsStatus.longPressSpeedLockEnabled && Settings.HOLD_ANYWHERE_2X.get()) {
             count++;
         }
         if (SettingsStatus.disableLongPressQuickShareEnabled
@@ -529,7 +559,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
 
         String relativePath = getRelativePrimaryStoragePath(data.getData());
         if (relativePath == null) {
-            app.morphe.extension.shared.Utils.showToastLong("Only internal storage folders are supported");
+            app.morphe.extension.shared.Utils.showToastLong("Поддерживаются только папки во внутренней памяти");
             return;
         }
 

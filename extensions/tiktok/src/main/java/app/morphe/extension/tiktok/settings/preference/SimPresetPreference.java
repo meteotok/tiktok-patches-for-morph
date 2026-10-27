@@ -44,7 +44,7 @@ public class SimPresetPreference extends Preference {
         this.countryIsoPreference = countryIsoPreference;
         this.mccMncPreference = mccMncPreference;
         this.operatorNamePreference = operatorNamePreference;
-        setTitle("Region preset");
+        setTitle("Пресет региона");
         refreshSummary();
     }
 
@@ -62,9 +62,9 @@ public class SimPresetPreference extends Preference {
             setSummary(selectedPreset.country + " - " + selectedPreset.operatorName + " - "
                     + selectedPreset.mccMnc);
         } else if (SimPresets.hasEmptyCurrentValues(iso, mccMnc, operatorName)) {
-            setSummary("No preset selected");
+            setSummary("Пресет не выбран");
         } else {
-            setSummary("Custom SIM details");
+            setSummary("Свои данные SIM");
         }
     }
 
@@ -89,7 +89,7 @@ public class SimPresetPreference extends Preference {
         dialogView.setPadding(padding, padding, padding, padding);
 
         TextView title = new TextView(context);
-        title.setText("Region preset");
+        title.setText("Пресет региона");
         title.setTextColor(getTitleTextColor());
         title.setTextSize(20);
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
@@ -99,7 +99,7 @@ public class SimPresetPreference extends Preference {
         ));
 
         TextView helper = new TextView(context);
-        helper.setText("Choose a preset to fill these region details.");
+        helper.setText("Выбери пресет, чтобы заполнить данные региона.");
         helper.setTextColor(getSummaryTextColor());
         LinearLayout.LayoutParams helperParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -110,7 +110,7 @@ public class SimPresetPreference extends Preference {
 
         EditText search = new EditText(context);
         search.setSingleLine(true);
-        search.setHint("Search countries or operators");
+        search.setHint("Поиск страны или оператора");
         search.setTextColor(getTitleTextColor());
         search.setHintTextColor(getSummaryTextColor());
         SettingsUi.styleEditText(search);
@@ -196,10 +196,10 @@ public class SimPresetPreference extends Preference {
 
     private boolean savePreset(SimPreset preset) {
         if (!preset.isValid()) {
-            Logger.printException(() -> "Invalid SIM preset refused: "
+            Logger.printException(() -> "Неверный пресет SIM отклонён: "
                     + preset.country + " / " + preset.operatorName + " / "
                     + preset.mccMnc + " / " + preset.iso);
-            app.morphe.extension.shared.Utils.showToastLong("Invalid SIM preset");
+            app.morphe.extension.shared.Utils.showToastLong("Неверный пресет SIM");
             return false;
         }
 
@@ -208,13 +208,13 @@ public class SimPresetPreference extends Preference {
         operatorNamePreference.setText(preset.operatorName);
         refreshSummary(preset.iso, preset.mccMnc, preset.operatorName);
 
-        Logger.printDebug(() -> "SIM preset selected: " + preset.country + " / "
+        Logger.printDebug(() -> "Выбран пресет SIM: " + preset.country + " / "
                 + preset.operatorName + " / " + preset.mccMnc + " / " + preset.iso);
 
         if (Settings.SIM_SPOOF.get()) {
             AbstractPreferenceFragment.showRestartDialog(getContext());
         } else {
-            app.morphe.extension.shared.Utils.showToastShort("Region preset saved");
+            app.morphe.extension.shared.Utils.showToastShort("Пресет региона сохранён");
         }
 
         return true;
@@ -277,7 +277,7 @@ public class SimPresetPreference extends Preference {
             SimPreset preset = getItem(position);
 
             if (preset == null) {
-                title.setText("No matching countries");
+                title.setText("Страны не найдены");
                 summary.setText("");
                 view.setEnabled(false);
             } else {

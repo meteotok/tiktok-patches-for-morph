@@ -11,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import java.util.Locale;
 
 @SuppressWarnings("deprecation")
 public final class SettingsGroupPreference extends Preference {
@@ -30,19 +29,19 @@ public final class SettingsGroupPreference extends Preference {
         Context context = getContext();
         TextView heading = SettingsUi.text(
                 context,
-                label.toUpperCase(Locale.ROOT),
-                12.5f,
-                SettingsUi.ACCENT,
-                Typeface.BOLD
+                label,
+                13f,
+                SettingsUi.textSecondary(),
+                Typeface.NORMAL
         );
         heading.setPadding(
+                SettingsUi.dp(context, 16),
                 SettingsUi.dp(context, 22),
-                SettingsUi.dp(context, 20),
-                SettingsUi.dp(context, 22),
-                SettingsUi.dp(context, 7)
+                SettingsUi.dp(context, 16),
+                SettingsUi.dp(context, 6)
         );
-        heading.setBackgroundColor(SettingsUi.background());
-        heading.setContentDescription(label + " section");
+        heading.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        heading.setContentDescription(label + " — раздел");
         return heading;
     }
 }

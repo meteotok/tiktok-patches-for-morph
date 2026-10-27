@@ -101,7 +101,7 @@ public class ShareSheetItemSelectionPreference extends Preference {
         Set<String> selected = parseEnabledKeys.apply(value);
         List<Row> allRows = currentRows();
         if (allRows.isEmpty()) {
-            setSummary("No items discovered yet");
+            setSummary("Пока ничего не найдено");
             return;
         }
 
@@ -119,11 +119,11 @@ public class ShareSheetItemSelectionPreference extends Preference {
         }
 
         if (selectedCount == allRows.size()) {
-            setSummary("All");
+            setSummary("Все");
             return;
         }
         if (builder.length() == 0) {
-            setSummary("None");
+            setSummary("Нет");
             return;
         }
         setSummary(builder.toString());
@@ -168,7 +168,7 @@ public class ShareSheetItemSelectionPreference extends Preference {
 
         if (rows.isEmpty()) {
             TextView emptyState = new TextView(context);
-            emptyState.setText("No items discovered yet. Open a video's Share menu once, then return here.");
+            emptyState.setText("Пока ничего не найдено. Открой меню «Поделиться» у любого видео и вернись сюда.");
             emptyState.setTextColor(getSummaryTextColor());
             emptyState.setTextSize(15);
             emptyState.setPadding(dpToPx(12), dpToPx(18), dpToPx(12), dpToPx(18));
@@ -198,9 +198,9 @@ public class ShareSheetItemSelectionPreference extends Preference {
         LinearLayout actions = new LinearLayout(context);
         actions.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView selectAllButton = createActionButton(context, "Select all", false);
-        TextView cancelButton = createActionButton(context, "Cancel", false);
-        TextView saveButton = createActionButton(context, "Save", true);
+        TextView selectAllButton = createActionButton(context, "Выбрать все", false);
+        TextView cancelButton = createActionButton(context, "Отмена", false);
+        TextView saveButton = createActionButton(context, "Сохранить", true);
 
         actions.addView(selectAllButton, new LinearLayout.LayoutParams(
                 0,

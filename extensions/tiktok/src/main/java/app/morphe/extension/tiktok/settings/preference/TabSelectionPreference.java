@@ -39,7 +39,7 @@ public class TabSelectionPreference extends Preference {
         super(context);
         this.setting = setting;
         this.bottomTabs = bottomTabs;
-        setTitle(bottomTabs ? "Allowed bottom tabs" : "Allowed loaded tabs");
+        setTitle(bottomTabs ? "Разрешённые нижние вкладки" : "Разрешённые вкладки");
         setKey(setting.key);
         setValue(setting.get());
     }
@@ -79,7 +79,7 @@ public class TabSelectionPreference extends Preference {
         Set<String> selected = parseEnabledKeys(value);
         List<OptionRow> observedOptions = getObservedOptions();
         if (observedOptions.size() <= 1) {
-            setSummary(bottomTabs ? "Open TikTok home to detect loaded bottom tabs." : "Open TikTok home feed to detect loaded tabs.");
+            setSummary(bottomTabs ? "Открой главную TikTok, чтобы найти нижние вкладки." : "Открой главную ленту TikTok, чтобы найти вкладки.");
             return;
         }
 
@@ -98,12 +98,12 @@ public class TabSelectionPreference extends Preference {
         }
 
         if (selectedObserved == observedOptions.size()) {
-            setSummary("All loaded tabs");
+            setSummary("Все загруженные вкладки");
             return;
         }
 
         if (builder.length() == 0) {
-            setSummary(bottomTabs ? "Home" : "For You");
+            setSummary(bottomTabs ? "Главная" : "Рекомендации");
             return;
         }
         setSummary(builder.toString());
@@ -121,7 +121,7 @@ public class TabSelectionPreference extends Preference {
         dialogView.setPadding(padding, padding, padding, padding);
 
         TextView title = new TextView(context);
-        title.setText(bottomTabs ? "Allowed bottom tabs" : "Allowed loaded tabs");
+        title.setText(bottomTabs ? "Разрешённые нижние вкладки" : "Разрешённые вкладки");
         title.setTextColor(getTitleTextColor());
         title.setTextSize(20);
         title.setTypeface(title.getTypeface(), Typeface.BOLD);
@@ -132,8 +132,8 @@ public class TabSelectionPreference extends Preference {
 
         TextView helper = new TextView(context);
         helper.setText(bottomTabs
-                ? "Only bottom tabs TikTok has loaded on this device are shown here. This does not force unavailable tabs to appear."
-                : "Only tabs TikTok has loaded on this device are shown here. This does not force unavailable tabs to appear.");
+                ? "Тут только нижние вкладки, которые TikTok загрузил на этом устройстве. Недоступные вкладки это не включит."
+                : "Тут только вкладки, которые TikTok загрузил на этом устройстве. Недоступные вкладки это не включит.");
         helper.setTextColor(getSummaryTextColor());
         LinearLayout.LayoutParams helperParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -168,9 +168,9 @@ public class TabSelectionPreference extends Preference {
         LinearLayout actions = new LinearLayout(context);
         actions.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView showAllButton = createActionButton(context, "Reset to loaded", false);
-        TextView cancelButton = createActionButton(context, "Cancel", false);
-        TextView saveButton = createActionButton(context, "Save", true);
+        TextView showAllButton = createActionButton(context, "Сбросить", false);
+        TextView cancelButton = createActionButton(context, "Отмена", false);
+        TextView saveButton = createActionButton(context, "Сохранить", true);
 
         actions.addView(showAllButton, new LinearLayout.LayoutParams(
                 0,
@@ -259,7 +259,7 @@ public class TabSelectionPreference extends Preference {
 
         if (isRequiredOption(option.key)) {
             TextView summary = new TextView(context);
-            summary.setText("Required");
+            summary.setText("Обязательно");
             summary.setTextColor(getSummaryTextColor());
             summary.setTextSize(13);
             textContainer.addView(summary);
