@@ -128,18 +128,21 @@ public final class PrismDecor extends Drawable implements Runnable {
 
     /** Half the size of a corner decoration, including how far it moves. */
     private float radius() {
-        return 24 * dp;
+        return 34 * dp;
     }
+
+    /** How much bigger corner decorations are than the shapes' base sizes. */
+    private static final float SCALE = 34f / 24f;
 
     /** The space a corner's decoration may use. */
     private void cornerArea(int corner, float w, float top, float bottom) {
         float size = radius() * 2;
         // Top corners sit under TikTok's top bar, bottom corners just above the bottom bar.
-        float y = corner < BOTTOM_LEFT ? top + 62 * dp : bottom - size - 10 * dp;
-        float x = corner % 2 == 0 ? 6 * dp : w - size - 6 * dp;
+        float y = corner < BOTTOM_LEFT ? top + 54 * dp : bottom - size - 6 * dp;
+        float x = corner % 2 == 0 ? 2 * dp : w - size - 2 * dp;
         if (corner == TOP_RIGHT && PrismTheme.current() == PrismTheme.HALLOWEEN) {
             // The spider's web is fixed to the screen edge and its thread goes down from it.
-            area.set(w - size - 14 * dp, y - 8 * dp, w, y + size + 22 * dp);
+            area.set(w - size - 14 * dp, y - 8 * dp, w, y + size + 30 * dp);
         } else {
             area.set(x, y, x + size, y + size);
         }
@@ -169,7 +172,7 @@ public final class PrismDecor extends Drawable implements Runnable {
         // Never above the status bar's lower edge: the clock, the camera and the icons are there.
         float top = Math.max(topInset, statusBar);
         float bottom = h - bottomInset;
-        if (w <= 0 || bottom - top < radius() * 8) {
+        if (w <= 0 || bottom - top < radius() * 6) {
             return;
         }
         float t = (SystemClock.uptimeMillis() % 600_000L) / 1000f;
@@ -196,6 +199,10 @@ public final class PrismDecor extends Drawable implements Runnable {
                         ? canvas.saveLayerAlpha(area.left - radius(), area.top - radius(), area.right + radius(),
                         area.bottom + radius(), (int) (255 * alpha))
                         : canvas.save();
+                if (!(corner == TOP_RIGHT && PrismTheme.current() == PrismTheme.HALLOWEEN)) {
+                    // The shapes are drawn at their base size and scaled up around the corner.
+                    canvas.scale(SCALE, SCALE, area.centerX(), area.centerY());
+                }
                 drawCorner(canvas, corner, w, t);
                 canvas.restoreToCount(layer);
             }
@@ -248,9 +255,14 @@ public final class PrismDecor extends Drawable implements Runnable {
                 }
                 break;
             case FEMBOY:
-                if (index % 2 == 0) {
-                    bow(canvas, x, y + bob - 4 * dp, 15 * dp,
-                            corner < BOTTOM_LEFT ? Color.rgb(255, 92, 170) : Color.rgb(120, 190, 255));
+                // Boykisser and Mimi are always on screen; bows and hearts take the other corners.
+                int femboy = Math.floorMod(corner + variant, 4);
+                if (femboy == 0) {
+                    boykisser(canvas, x, y + bob, 15 * dp, t);
+                } else if (femboy == 1) {
+                    mimi(canvas, x, y + bob, 15 * dp, t);
+                } else if (femboy == 2) {
+                    bow(canvas, x, y + bob - 4 * dp, 15 * dp, Color.rgb(120, 190, 255));
                 } else {
                     risingHearts(canvas, x, y, t + index);
                 }
@@ -293,9 +305,9 @@ public final class PrismDecor extends Drawable implements Runnable {
      */
     private void hangingSpider(Canvas canvas, float w, float t) {
         float anchor = area.top;
-        cobweb(canvas, w, anchor, 30 * dp, -1);
-        float x = w - 22 * dp;
-        float length = 16 * dp + (area.height() - 46 * dp) * (0.5f + 0.5f * (float) Math.sin(t * 0.6));
+        cobweb(canvas, w, anchor, 42 * dp, -1);
+        float x = w - 30 * dp;
+        float length = 16 * dp + (area.height() - 52 * dp) * (0.5f + 0.5f * (float) Math.sin(t * 0.6));
         float swing = (float) Math.sin(t * 1.7) * 7f;
         canvas.save();
         canvas.rotate(swing, x, anchor);
@@ -303,11 +315,126 @@ public final class PrismDecor extends Drawable implements Runnable {
         stroke.setColor(Color.argb(210, 255, 255, 255));
         stroke.setStrokeWidth(1f * dp);
         canvas.drawLine(x, anchor, x, anchor + length, stroke);
-        spider(canvas, x, anchor + length + 9 * dp, 0.8f);
+        spider(canvas, x, anchor + length + 11 * dp, 1.1f);
         canvas.restore();
     }
 
     // region shapes
+
+    /** The white "boykisser" cat with a smug look and pink cheeks, head tilting a little. */
+    private void boykisser(Canvas canvas, float x, float y, float r, float t) {
+        canvas.save();
+        canvas.rotate((float) Math.sin(t * 1.1) * 6f, x, y + r);
+        int outline = Color.rgb(60, 50, 70);
+        stroke.setShader(null);
+        stroke.setColor(outline);
+        stroke.setStrokeWidth(1.4f * dp);
+        // Ears.
+        for (int side = -1; side <= 1; side += 2) {
+            path.reset();
+            path.moveTo(x + side * r * 0.95f, y - r * 0.15f);
+            path.lineTo(x + side * r * 0.85f, y - r * 1.15f);
+            path.lineTo(x + side * r * 0.2f, y - r * 0.7f);
+            path.close();
+            fill.setShader(null);
+            fill.setColor(Color.WHITE);
+            canvas.drawPath(path, fill);
+            canvas.drawPath(path, stroke);
+            path.reset();
+            path.moveTo(x + side * r * 0.8f, y - r * 0.35f);
+            path.lineTo(x + side * r * 0.78f, y - r * 0.92f);
+            path.lineTo(x + side * r * 0.38f, y - r * 0.66f);
+            path.close();
+            fill.setColor(Color.rgb(255, 170, 200));
+            canvas.drawPath(path, fill);
+        }
+        // Head.
+        oval.set(x - r * 1.05f, y - r * 0.85f, x + r * 1.05f, y + r * 0.8f);
+        fill.setColor(Color.WHITE);
+        canvas.drawOval(oval, fill);
+        canvas.drawOval(oval, stroke);
+        // Half-closed smug eyes: dark ovals under a flat lid.
+        for (int side = -1; side <= 1; side += 2) {
+            float ex = x + side * r * 0.42f;
+            float ey = y - r * 0.05f;
+            fill.setColor(Color.rgb(40, 30, 50));
+            oval.set(ex - r * 0.2f, ey - r * 0.12f, ex + r * 0.2f, ey + r * 0.3f);
+            canvas.drawOval(oval, fill);
+            fill.setColor(Color.WHITE);
+            canvas.drawRect(ex - r * 0.24f, ey - r * 0.16f, ex + r * 0.24f, ey + r * 0.04f, fill);
+            stroke.setColor(outline);
+            canvas.drawLine(ex - r * 0.24f, ey + r * 0.04f, ex + r * 0.24f, ey + r * 0.04f, stroke);
+            fill.setColor(Color.WHITE);
+            canvas.drawCircle(ex + r * 0.07f, ey + r * 0.14f, r * 0.05f, fill);
+            // Blush.
+            fill.setColor(Color.argb(170, 255, 120, 170));
+            oval.set(ex - r * 0.22f, ey + r * 0.32f, ex + r * 0.22f, ey + r * 0.46f);
+            canvas.drawOval(oval, fill);
+        }
+        // Little smirk.
+        path.reset();
+        path.moveTo(x - r * 0.18f, y + r * 0.42f);
+        path.quadTo(x - r * 0.05f, y + r * 0.52f, x + r * 0.02f, y + r * 0.42f);
+        path.quadTo(x + r * 0.12f, y + r * 0.5f, x + r * 0.24f, y + r * 0.36f);
+        canvas.drawPath(path, stroke);
+        canvas.restore();
+        // A heart floating off to the side.
+        float phase = (t * 0.35f) % 1f;
+        heart(canvas, x + r * 1.05f, y - r * 0.6f - phase * r * 0.9f, r * 0.22f,
+                PrismTheme.withAlpha(Color.rgb(255, 92, 170), (float) Math.sin(Math.PI * phase)));
+    }
+
+    /** Mimi: a pink kitty with a bow, happy closed eyes and a blush, bouncing a little. */
+    private void mimi(Canvas canvas, float x, float y, float r, float t) {
+        float squash = 1f + 0.04f * (float) Math.sin(t * 3);
+        canvas.save();
+        canvas.scale(1f / squash, squash, x, y + r * 0.8f);
+        int body = Color.rgb(255, 196, 222);
+        int outline = Color.rgb(200, 80, 140);
+        stroke.setShader(null);
+        stroke.setColor(outline);
+        stroke.setStrokeWidth(1.4f * dp);
+        for (int side = -1; side <= 1; side += 2) {
+            path.reset();
+            path.moveTo(x + side * r * 0.95f, y - r * 0.1f);
+            path.quadTo(x + side * r * 1.05f, y - r * 1.1f, x + side * r * 0.75f, y - r * 1.1f);
+            path.quadTo(x + side * r * 0.45f, y - r * 0.95f, x + side * r * 0.25f, y - r * 0.72f);
+            path.close();
+            fill.setShader(null);
+            fill.setColor(body);
+            canvas.drawPath(path, fill);
+            canvas.drawPath(path, stroke);
+        }
+        fill.setShader(new RadialGradient(x - r * 0.3f, y - r * 0.4f, r * 1.4f, Color.rgb(255, 228, 240), body,
+                Shader.TileMode.CLAMP));
+        oval.set(x - r, y - r * 0.85f, x + r, y + r * 0.8f);
+        canvas.drawOval(oval, fill);
+        fill.setShader(null);
+        canvas.drawOval(oval, stroke);
+        // Happy closed eyes "^ ^".
+        stroke.setColor(Color.rgb(90, 40, 80));
+        stroke.setStrokeWidth(1.8f * dp);
+        for (int side = -1; side <= 1; side += 2) {
+            float ex = x + side * r * 0.4f;
+            path.reset();
+            path.moveTo(ex - r * 0.18f, y + r * 0.02f);
+            path.quadTo(ex, y - r * 0.24f, ex + r * 0.18f, y + r * 0.02f);
+            canvas.drawPath(path, stroke);
+            fill.setColor(Color.argb(190, 255, 105, 160));
+            oval.set(ex - r * 0.2f, y + r * 0.18f, ex + r * 0.2f, y + r * 0.34f);
+            canvas.drawOval(oval, fill);
+        }
+        // Cat mouth "ω".
+        stroke.setStrokeWidth(1.4f * dp);
+        path.reset();
+        path.moveTo(x - r * 0.2f, y + r * 0.3f);
+        path.quadTo(x - r * 0.1f, y + r * 0.46f, x, y + r * 0.3f);
+        path.quadTo(x + r * 0.1f, y + r * 0.46f, x + r * 0.2f, y + r * 0.3f);
+        canvas.drawPath(path, stroke);
+        canvas.restore();
+        // Bow on the ear.
+        bow(canvas, x + r * 0.62f, y - r * 0.82f, r * 0.42f, Color.rgb(255, 64, 150));
+    }
 
     private void ghost(Canvas canvas, float x, float y, float r) {
         glow.setShader(new RadialGradient(x, y, r * 2f, Color.argb(110, 200, 210, 255),
