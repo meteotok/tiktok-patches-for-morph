@@ -634,7 +634,8 @@ public final class FeedItemsFilter {
         List<IFilter> configuredContentFilters = forYou
             ? (includeNonAi ? FOR_YOU_FILTERS : ALTERNATE_ONLY_FILTERS)
             : (includeNonAi ? (phase == FilterPhase.RESPONSE ? CONTENT_FILTERS : LATE_FOLLOW_FILTERS) : List.of());
-        List<IFilter> configuredRangeFilters = includeNonAi && phase == FilterPhase.RESPONSE
+        // Like/view ranges only shape For You recommendations, never Following, search or profiles.
+        List<IFilter> configuredRangeFilters = forYou && includeNonAi && phase == FilterPhase.RESPONSE
             ? RANGE_FILTERS : List.of();
         List<IFilter> activeContentFilters = getActiveFilters(configuredContentFilters, settings);
         List<IFilter> activeRangeFilters = getActiveFilters(configuredRangeFilters, settings);

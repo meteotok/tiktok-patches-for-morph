@@ -28,7 +28,7 @@ import com.ss.android.ugc.aweme.feed.model.FeedItemList;
  * <p>
  * A response is never left empty: TikTok treats an empty page as a failed load and falls back to
  * its cached feed, which is where the old videos came from. When the filters remove everything,
- * the least liked new video of the page is kept.
+ * the most liked new video of the page is kept.
  */
 final class WatchedForYou {
     private static final int MAX_REMEMBERED = 5000;
@@ -110,7 +110,7 @@ final class WatchedForYou {
     private static Object fallback(List original, int response, List<IFilter> contentFilters) {
         Object best = null;
         boolean bestNew = false;
-        long bestLikes = Long.MAX_VALUE;
+        long bestLikes = Long.MIN_VALUE;
         for (Object container : original) {
             if (!(container instanceof Aweme)) {
                 continue;
@@ -121,8 +121,8 @@ final class WatchedForYou {
             }
             boolean isNew = !isWatched(item, response);
             AwemeStatistics statistics = item.getStatistics();
-            long likes = statistics == null ? Long.MAX_VALUE - 1 : statistics.getDiggCount();
-            if (best == null || (isNew && !bestNew) || (isNew == bestNew && likes < bestLikes)) {
+            long likes = statistics == null ? -1 : statistics.getDiggCount();
+            if (best == null || (isNew && !bestNew) || (isNew == bestNew && likes > bestLikes)) {
                 best = container;
                 bestNew = isNew;
                 bestLikes = likes;
