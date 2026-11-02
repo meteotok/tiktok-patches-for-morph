@@ -228,7 +228,7 @@ internal object AppCompatibilities {
     )
 
     /** Target: TikTok 47.5.3 global package. */
-    fun tiktok4753(): Array<Compatibility> = arrayOf(
+    fun tiktok4763(): Array<Compatibility> = arrayOf(
         Compatibility(
             name = "TikTok",
             packageName = "com.zhiliaoapp.musically",
@@ -237,7 +237,7 @@ internal object AppCompatibilities {
         ),
     )
 
-    /** Target: TikTok 46.2.3 global package. Kept for patches not yet ported to 47.5.3. */
+    /** Target: TikTok 46.2.3 global package. Kept for patches not yet ported to 47.6.3. */
     fun tiktok4623(): Array<Compatibility> = arrayOf(
         Compatibility(
             name = "TikTok",

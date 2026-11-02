@@ -40,7 +40,7 @@ val prismUiPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch, settingsPatch, prismUpdatePermissionPatch, decorImagesPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         // The extension only registers activity lifecycle callbacks here and decorates views

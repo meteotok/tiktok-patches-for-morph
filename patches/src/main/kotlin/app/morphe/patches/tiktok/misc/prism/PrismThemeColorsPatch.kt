@@ -53,7 +53,7 @@ val prismThemeColorsPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         val sites = mutableListOf<Triple<com.android.tools.smali.dexlib2.iface.ClassDef,

@@ -46,7 +46,7 @@ val antiRecordingPatch = resourcePatch(
     description = "Disables capture detection and secure-window screenshot protection, including Circle to Search blocking.",
     default = true,
 ) {
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     dependsOn(
         bytecodePatch {

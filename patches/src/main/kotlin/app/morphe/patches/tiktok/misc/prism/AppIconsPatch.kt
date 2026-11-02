@@ -23,7 +23,7 @@ val appIconsPatch = resourcePatch(
         "that can be switched in the mod settings. Prisma is the default icon and the app is named Prisma.",
     default = true,
 ) {
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         val res = get("res")

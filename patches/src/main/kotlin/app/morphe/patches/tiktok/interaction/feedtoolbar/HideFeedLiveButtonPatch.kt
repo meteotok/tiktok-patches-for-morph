@@ -28,7 +28,7 @@ val hideFeedLiveButtonPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(

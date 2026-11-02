@@ -40,7 +40,7 @@ val downloadsPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
@@ -123,13 +123,14 @@ val downloadsPatch = bytecodePatch(
         }
 
         // Preserve the full StickerItem behind TikTok's reduced preview model for media detection.
+        val stickerBinder = StickerPreviewBinderFingerprint.method
         StickerPreviewSourceFingerprint.method.apply {
             val bindCallIndices = implementation!!.instructions.withIndex()
                 .filter { (_, instruction) ->
                     instruction.getReference<MethodReference>()?.let { reference ->
-                        reference.definingClass == "LX/14fk;" &&
-                            reference.name == "LIZ" &&
-                            reference.parameterTypes.firstOrNull() == "LX/14fj;"
+                        reference.definingClass == stickerBinder.definingClass &&
+                            reference.name == stickerBinder.name &&
+                            reference.parameterTypes.map { it.toString() } == stickerBinder.parameterTypes.map { it.toString() }
                     } == true
                 }
                 .map { it.index }
@@ -137,7 +138,7 @@ val downloadsPatch = bytecodePatch(
 
             if (bindCallIndices.isEmpty()) {
                 throw app.morphe.patcher.patch.PatchException(
-                    "Downloads: could not find 46.2.3 sticker preview bind calls.",
+                    "Downloads: could not find sticker preview bind calls.",
                 )
             }
 

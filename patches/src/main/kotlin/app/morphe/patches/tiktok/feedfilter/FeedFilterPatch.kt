@@ -37,7 +37,7 @@ private val feedListHooksPatch = bytecodePatch {
         sharedExtensionPatch,
     )
 
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         fun requirePublicClass(type: String) = classDefBy(type).also { classDef ->
@@ -406,7 +406,7 @@ val feedFilterPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(feedListHooksPatch, settingsPatch)
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,
@@ -495,7 +495,7 @@ val hideAiContentPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(feedListHooksPatch, settingsPatch)
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,
@@ -511,7 +511,7 @@ val hideFypSlopPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(feedListHooksPatch, settingsPatch)
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
     execute {
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,

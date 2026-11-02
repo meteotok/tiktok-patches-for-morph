@@ -15,7 +15,7 @@ val rememberClearDisplayPatch = bytecodePatch(
     description = "Remembers TikTok's clear-display state between videos.",
     default = true,
 ) {
-    compatibleWith(*AppCompatibilities.tiktok4753())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         // Prevent excessive logging in high-frequency feed paths.
