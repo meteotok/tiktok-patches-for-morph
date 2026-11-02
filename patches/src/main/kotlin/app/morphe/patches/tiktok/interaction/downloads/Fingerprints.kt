@@ -33,14 +33,16 @@ internal object AclCommonShare3Fingerprint : Fingerprint(
 
 // Obfuscated names below are for TikTok 47.6.3 (46.2.3: 0L4Q, 0L4G, 0ULN, 0ULM, 0UL9, 0GSy, 0ULU, 16zb).
 // MediaStore helper: LX/01BF; on 47.5.3, LX/01BG; on 47.6.3 (method names unchanged).
-internal const val MEDIA_STORE_HELPER_DESCRIPTOR = "LX/01BG;"
+// Both are accepted so one bundle patches either release.
+internal val MEDIA_STORE_HELPER_DESCRIPTORS = setOf("LX/01BF;", "LX/01BG;")
+
 internal object VideoDownloadUriFingerprint : Fingerprint(
-    definingClass = MEDIA_STORE_HELPER_DESCRIPTOR,
     name = "LIZLLL",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Landroid/net/Uri;",
     parameters = listOf("Landroid/content/Context;", "Ljava/lang/String;"),
     strings = listOf("/", "/Camera", "/Camera/", "video/mp4"),
+    custom = { _, classDef -> classDef.type in MEDIA_STORE_HELPER_DESCRIPTORS },
 )
 
 internal object AwemeGetVideoFingerprint : Fingerprint(
@@ -83,34 +85,33 @@ internal object StickerPreviewBinderFingerprint : Fingerprint(
 )
 
 internal object PhotoDownloadUriFingerprint : Fingerprint(
-    definingClass = MEDIA_STORE_HELPER_DESCRIPTOR,
     name = "LIZIZ",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Landroid/net/Uri;",
     parameters = listOf("Landroid/content/Context;", "Ljava/lang/String;", "Ljava/lang/String;"),
     strings = listOf("/", "/Camera", "/Camera/"),
+    custom = { _, classDef -> classDef.type in MEDIA_STORE_HELPER_DESCRIPTORS },
 )
 
 internal object VideoLookupUriFingerprint : Fingerprint(
-    definingClass = MEDIA_STORE_HELPER_DESCRIPTOR,
     name = "LJIIIIZZ",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Landroid/net/Uri;",
     parameters = listOf("Landroid/content/Context;", "Ljava/lang/String;"),
     strings = listOf("/Camera/", "video/*", "(relative_path=? OR relative_path=?) AND _display_name=?"),
+    custom = { _, classDef -> classDef.type in MEDIA_STORE_HELPER_DESCRIPTORS },
 )
 
 internal object PhotoLookupUriFingerprint : Fingerprint(
-    definingClass = MEDIA_STORE_HELPER_DESCRIPTOR,
     name = "LJFF",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Landroid/net/Uri;",
     parameters = listOf("Landroid/content/Context;", "Ljava/lang/String;", "Ljava/lang/String;"),
     strings = listOf("/Camera/", "image/*", "(relative_path=? OR relative_path=?) AND _display_name=?"),
+    custom = { _, classDef -> classDef.type in MEDIA_STORE_HELPER_DESCRIPTORS },
 )
 
 internal object VideoMediaStoreInsertFingerprint : Fingerprint(
-    definingClass = MEDIA_STORE_HELPER_DESCRIPTOR,
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Landroid/net/Uri;",
     parameters = listOf(
@@ -119,7 +120,8 @@ internal object VideoMediaStoreInsertFingerprint : Fingerprint(
         "Ljava/lang/String;",
         "Ljava/lang/String;",
     ),
-    custom = { method, _ ->
+    custom = { method, classDef ->
+        classDef.type in MEDIA_STORE_HELPER_DESCRIPTORS &&
         method.implementation?.instructions?.any { instruction ->
             instruction.getReference<MethodReference>()?.let { reference ->
                 reference.definingClass == "Landroid/provider/MediaStore\$Video\$Media;" &&
@@ -130,7 +132,6 @@ internal object VideoMediaStoreInsertFingerprint : Fingerprint(
 )
 
 internal object PhotoMediaStoreInsertFingerprint : Fingerprint(
-    definingClass = MEDIA_STORE_HELPER_DESCRIPTOR,
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     returnType = "Landroid/net/Uri;",
     parameters = listOf(
@@ -139,7 +140,8 @@ internal object PhotoMediaStoreInsertFingerprint : Fingerprint(
         "Ljava/lang/String;",
         "Ljava/lang/String;",
     ),
-    custom = { method, _ ->
+    custom = { method, classDef ->
+        classDef.type in MEDIA_STORE_HELPER_DESCRIPTORS &&
         method.implementation?.instructions?.any { instruction ->
             instruction.getReference<MethodReference>()?.let { reference ->
                 reference.definingClass == "Landroid/provider/MediaStore\$Images\$Media;" &&
@@ -166,8 +168,8 @@ internal object ImagePostMediaCopyFingerprint : Fingerprint(
         val calls = method.implementation?.instructions?.mapNotNull { instruction ->
             instruction.getReference<MethodReference>()
         } ?: emptyList()
-        calls.any { it.definingClass == MEDIA_STORE_HELPER_DESCRIPTOR && it.name == "LJ" } &&
-            calls.any { it.definingClass == MEDIA_STORE_HELPER_DESCRIPTOR && it.name == "LIZJ" }
+        calls.any { it.definingClass in MEDIA_STORE_HELPER_DESCRIPTORS && it.name == "LJ" } &&
+            calls.any { it.definingClass in MEDIA_STORE_HELPER_DESCRIPTORS && it.name == "LIZJ" }
     },
 )
 
