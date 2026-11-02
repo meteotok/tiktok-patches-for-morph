@@ -2,8 +2,8 @@ group = "app.morphe"
 
 patches {
     about {
-        name = "Prism"
-        description = "Prism: clean TikTok 47.6.3 with themes, liquid glass and badges. Based on Metra TikTok Patches, built for Morphe."
+        name = "Prisma"
+        description = "Prisma 0.9.0 for TikTok 47.6.3 only: clean TikTok with themes, liquid glass and badges. Based on Metra TikTok Patches, built for Morphe."
         source = "https://github.com/icysymmetra/tiktok-patches-for-morphe"
         author = "icysymmetra"
         contact = "na"

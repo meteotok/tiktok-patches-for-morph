@@ -32,7 +32,7 @@ import app.morphe.extension.tiktok.settings.Settings;
 @SuppressWarnings("unused")
 public final class PrismUpdate {
     /** Build number of this mod version. Bump together with gradle.properties. */
-    public static final int CURRENT_CODE = 817;
+    public static final int CURRENT_CODE = 900;
     public static final String CURRENT_NAME = "0.8.17";
 
     private static final String[] MANIFEST_URLS = {
