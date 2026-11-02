@@ -32,6 +32,7 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting HIDE_CAPTCHA_POPUPS = new BooleanSetting("hide_captcha_popups", FALSE, true);
     public static final BooleanSetting HIDE_HOMEPAGE_COIN = new BooleanSetting("hide_homepage_coin", FALSE, true);
     public static final StringSetting MIN_MAX_VIEWS = new StringSetting("min_max_views", "0-" + Long.MAX_VALUE, true);
+    public static final BooleanSetting HIDE_WATCHED_FOR_YOU = new BooleanSetting("hide_watched_for_you", TRUE);
     public static final StringSetting MIN_MAX_LIKES = new StringSetting("min_max_likes_v2", "0-4999", true);
     public static final BooleanSetting FILTER_OFFLINE_FALLBACK_VIDEOS = new BooleanSetting(
             "filter_cached_offline_videos",

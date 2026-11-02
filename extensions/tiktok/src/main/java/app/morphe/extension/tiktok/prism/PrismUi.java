@@ -234,9 +234,8 @@ public final class PrismUi {
         private final android.graphics.Rect visible = new android.graphics.Rect();
 
         /**
-         * Finds where TikTok has something to read or tap: text, inputs, icons and buttons.
-         * A corner with any of these hides its decoration. Videos, covers and thumbnails are
-         * fine to sit on the corner of.
+         * Finds text inputs (search, comment and message boxes). A corner decoration over one
+         * fades out; everything else can show through the thin, see-through decorations.
          */
         private void collectObstacles(View root) {
             blocked.clear();
@@ -255,40 +254,13 @@ public final class PrismUi {
                     || !view.getGlobalVisibleRect(visible)) {
                 return;
             }
-            float density = view.getResources().getDisplayMetrics().density;
-            boolean small = visible.width() < 120 * density && visible.height() < 120 * density;
-            String name = view.getClass().getName();
-            if (view instanceof android.view.TextureView || view instanceof android.view.SurfaceView) {
-                return;
-            }
-            if (name.contains("ComposeView") || name.contains("WebView")) {
-                // Nothing inside can be seen from here, so the whole thing is off limits.
-                blocked.add(new RectF(visible));
-                return;
-            }
             if (view instanceof EditText) {
                 // Inputs get extra room so the keyboard row and send button stay clear.
                 RectF rect = new RectF(visible);
-                float pad = 18 * density;
+                float pad = 18 * view.getResources().getDisplayMetrics().density;
                 rect.inset(-pad, -pad);
                 blocked.add(rect);
                 return;
-            }
-            if (view instanceof TextView) {
-                if (((TextView) view).length() > 0) {
-                    blocked.add(new RectF(visible));
-                }
-                return;
-            }
-            if (view instanceof android.widget.ImageView) {
-                // Icons and avatars; big images are covers and thumbnails.
-                if (small) {
-                    blocked.add(new RectF(visible));
-                }
-                return;
-            }
-            if ((view.isClickable() || view.isLongClickable()) && small) {
-                blocked.add(new RectF(visible));
             }
             if (view instanceof ViewGroup) {
                 ViewGroup group = (ViewGroup) view;

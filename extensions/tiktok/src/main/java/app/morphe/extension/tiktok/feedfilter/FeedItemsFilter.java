@@ -118,16 +118,22 @@ public final class FeedItemsFilter {
             );
         }
 
+        List original = feedItemList.items;
         filterFeedList(
             "FeedItemList:response",
             feedItemList,
-            feedItemList.items,
+            original,
             container -> (container instanceof Aweme) ? (Aweme) container : null,
             verbose,
             true,
             FilterPhase.RESPONSE,
             true
         );
+        try {
+            WatchedForYou.apply(feedItemList, original, CONTENT_FILTERS);
+        } catch (RuntimeException | LinkageError error) {
+            logInstallFailure("FeedItemList:watched", error);
+        }
     }
 
     /**

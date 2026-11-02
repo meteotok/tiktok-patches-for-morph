@@ -74,6 +74,13 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
         }
 
         if (SettingsStatus.feedFilterEnabled) {
+            addPreference(group(context, "Просмотренное"));
+            addPreference(new TogglePreference(
+                    context,
+                    "Не показывать просмотренное",
+                    "Видео, которые уже были в «Рекомендациях», больше туда не попадают, даже после обновления ленты или перезапуска. Профили, личка и подписки не трогаются.",
+                    Settings.HIDE_WATCHED_FOR_YOU
+            ));
             addPreference(group(context, "Фильтр по популярности"));
             addPreference(new RangeValuePreference(
                     context,
