@@ -18,7 +18,7 @@ import app.morphe.extension.tiktok.settings.Settings;
 @SuppressWarnings("unused")
 public enum PrismIcons {
     CLASSIC("classic", "Классика", null, Color.rgb(37, 244, 238), Color.rgb(254, 44, 85)),
-    PRISM("prism", "Prism", "prism_icon_prism", Color.rgb(139, 92, 246), Color.rgb(34, 211, 238)),
+    PRISM("prism", "Prisma", "prism_icon_prism", Color.rgb(139, 92, 246), Color.rgb(34, 211, 238)),
     HALLOWEEN("halloween", "Хеллоуин", "prism_icon_halloween", Color.rgb(255, 140, 26), Color.rgb(142, 45, 226)),
     FEMBOY("femboy", "Фембой", "prism_icon_femboy", Color.rgb(255, 120, 190), Color.rgb(126, 200, 255)),
     NEON("neon", "Неон", "prism_icon_neon", Color.rgb(57, 255, 20), Color.rgb(255, 0, 229)),

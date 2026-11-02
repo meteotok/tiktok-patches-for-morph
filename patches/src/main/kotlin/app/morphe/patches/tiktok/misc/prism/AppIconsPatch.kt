@@ -13,14 +13,14 @@ private const val LAUNCHER_ALIAS = "com.ss.android.ugc.aweme.splash.SplashActivi
 // Keep in sync with app.morphe.extension.tiktok.prism.PrismIcons.
 private const val ALIAS_PREFIX = "com.ss.android.ugc.aweme.splash.PrismIcon_"
 private const val DEFAULT_ICON = "prism"
-private const val APP_NAME = "Prism"
+private const val APP_NAME = "Prisma"
 private val CUSTOM_ICONS = listOf("prism", "halloween", "femboy", "neon", "ocean", "gold", "sakura")
 
 @Suppress("unused")
 val appIconsPatch = resourcePatch(
     name = "App icons",
-    description = "Adds Prism launcher icons (Prism, Halloween, Femboy, Neon, Ocean, Gold, Sakura) " +
-        "that can be switched in the mod settings. Prism is the default icon and the app is named Prism.",
+    description = "Adds Prisma launcher icons (Prisma, Halloween, Femboy, Neon, Ocean, Gold, Sakura) " +
+        "that can be switched in the mod settings. Prisma is the default icon and the app is named Prisma.",
     default = true,
 ) {
     compatibleWith(*AppCompatibilities.tiktok4753())

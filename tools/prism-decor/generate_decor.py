@@ -216,7 +216,7 @@ def orb_web(st, hub, frame, spokes, rings, broken=0.07, first=0.08):
 
 
 def web_top_right(path):
-    w, h = int(230 * S), int(255 * S)
+    w, h = int(160 * S), int(178 * S)
     st = Strands(w, h, 7)
     hub = (0.66 * w, 0.30 * h)
     # Anchors: along the top edge, down the right edge, plus long lines pulled to the left
@@ -224,7 +224,7 @@ def web_top_right(path):
     frame = [(0.14 * w, 0.03 * h), (0.55 * w, 0.015 * h), (0.93 * w, 0.04 * h), (0.985 * w, 0.14 * h),
              (0.975 * w, 0.50 * h), (0.92 * w, 0.76 * h), (0.80 * w, 0.90 * h), (0.55 * w, 0.60 * h),
              (0.06 * w, 0.22 * h)]
-    orb_web(st, hub, frame, spokes=16, rings=10, broken=0.16)
+    orb_web(st, hub, frame, spokes=15, rings=9, broken=0.14)
     # Frame threads tied to the top and right screen edges.
     for a, b in (((0.14 * w, 0.03 * h), (0.10 * w, 0.0)), ((0.55 * w, 0.015 * h), (0.52 * w, 0.0)),
                  ((0.93 * w, 0.04 * h), (0.98 * w, 0.0)), ((0.985 * w, 0.14 * h), (w - 1, 0.13 * h)),
@@ -249,22 +249,22 @@ def web_bottom_left(path):
     spokes = []
     for i in range(6):
         a = math.radians(8 + i * 13 + rng.uniform(-3, 3))
-        r = rng.uniform(0.42, 0.55) * w * (0.8 if i in (0, 5) else 1)
-        p = (corner[0] + math.cos(a) * r * 0.55, corner[1] + math.sin(a) * r * 0.75)
+        r = rng.uniform(0.55, 0.68) * w * (0.8 if i in (0, 5) else 1)
+        p = (corner[0] + math.cos(a) * r * 0.62, corner[1] + math.sin(a) * r * 0.85)
         spokes.append(p)
-        st.line([corner, p], 1.3 * S * 0.42, 0.9)
-    for k in range(1, 7):
-        f = k / 7.5
+        st.line([corner, p], 1.6 * S * 0.42, 1.0)
+    for k in range(1, 9):
+        f = k / 9.2
         pts = [(corner[0] + (p[0] - corner[0]) * f, corner[1] + (p[1] - corner[1]) * f) for p in spokes]
         for a, b in zip(pts, pts[1:]):
             if rng.random() < 0.08:
                 continue
-            st.line(st.sag(a, b, 0.08, toward=corner, steps=6), 0.95 * S * 0.42)
+            st.line(st.sag(a, b, 0.08, toward=corner, steps=6), 1.2 * S * 0.42, rng.uniform(0.8, 1.0))
     # Long torn strands drifting toward the bottom edge.
     for i in range(5):
         a = (rng.uniform(0.05, 0.4) * w, rng.uniform(0.45, 0.75) * h)
         b = (rng.uniform(0.55, 1.0) * w, rng.uniform(0.86, 1.0) * h)
-        st.line(st.sag(a, b, rng.uniform(0.01, 0.04)), 1.2 * S * 0.42, rng.uniform(0.55, 0.9))
+        st.line(st.sag(a, b, rng.uniform(0.01, 0.04)), 1.4 * S * 0.42, rng.uniform(0.8, 1.0))
     st.line(st.sag((0.0, 0.6 * h), (0.42 * w, 0.96 * h), 0.03), 1.4 * S * 0.42, 0.9)
     s = st.render()
     save(s, path)
@@ -864,7 +864,7 @@ def make_preview(out, path):
         if sprite:
             img = cairo.ImageSurface.create_from_png(os.path.join(out, f"prism_decor_{sprite}.png"))
             if sprite == "spider":
-                hx, hy = W - 230 * S + 0.66 * 230 * S, top + 0.30 * 255 * S
+                hx, hy = W - 160 * S + 0.66 * 160 * S, top + 0.30 * 178 * S
                 c.set_source_rgba(0.85, 0.85, 0.9, 0.8)
                 c.set_line_width(0.5 * S)
                 c.move_to(hx, hy)

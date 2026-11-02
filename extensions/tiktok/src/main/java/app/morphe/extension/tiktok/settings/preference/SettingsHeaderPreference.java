@@ -35,7 +35,7 @@ public final class SettingsHeaderPreference extends Preference {
         return new SettingsHeaderPreference(
                 context,
                 Kind.MASTER,
-                "Prism",
+                "Prisma",
                 null,
                 backAction
         );

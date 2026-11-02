@@ -45,7 +45,7 @@ private val badgeImagesPatch = resourcePatch {
 @Suppress("unused")
 val nicknameBadgesPatch = bytecodePatch(
     name = "Nickname badges",
-    description = "Shows Prism badges after the names of badge holders everywhere TikTok shows a name: " +
+    description = "Shows Prisma badges after the names of badge holders everywhere TikTok shows a name: " +
         "feed, profiles, comments and messages.",
     default = true,
 ) {

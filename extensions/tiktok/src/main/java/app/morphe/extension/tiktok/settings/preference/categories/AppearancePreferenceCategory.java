@@ -67,7 +67,7 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
         addPreference(new TogglePreference(
                 context,
                 "Проверять обновления",
-                "При запуске Prism смотрит, вышла ли новая версия, и предлагает обновиться в одно касание.",
+                "При запуске Prisma смотрит, вышла ли новая версия, и предлагает обновиться в одно касание.",
                 Settings.PRISM_UPDATE_CHECK
         ));
 
@@ -89,7 +89,7 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
         ));
         addPreference(new TogglePreference(
                 context,
-                "Бейджи из репозитория Prism",
+                "Бейджи из репозитория Prisma",
                 "Подтягивать общий список бейджей, который ведёт админ мода.",
                 Settings.PRISM_REMOTE_BADGES
         ));

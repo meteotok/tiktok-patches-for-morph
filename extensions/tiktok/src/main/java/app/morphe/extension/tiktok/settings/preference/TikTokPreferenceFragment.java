@@ -259,7 +259,7 @@ public class TikTokPreferenceFragment extends AbstractPreferenceFragment {
     private void createMasterMenu(Context context, PreferenceScreen screen) {
         screen.addPreference(SettingsHeaderPreference.master(context, this::closeSettings));
 
-        screen.addPreference(new SettingsGroupPreference(context, "Prism"));
+        screen.addPreference(new SettingsGroupPreference(context, "Prisma"));
         addMenu(screen, Section.APPEARANCE, SettingsMenuPreference.Icon.PALETTE, countEnabled(
                 Settings.PRISM_GLASS_NAV.get(),
                 Settings.PRISM_BADGES.get()

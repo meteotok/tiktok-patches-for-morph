@@ -44,7 +44,7 @@ private data class OpenDebugTargets(
 @Suppress("unused")
 val settingsPatch = bytecodePatch(
     name = "Settings",
-    description = "Adds the Prism settings menu to the top of TikTok settings. Supports TikTok 47.5.3.",
+    description = "Adds the Prisma settings menu to the top of TikTok settings. Supports TikTok 47.5.3.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
@@ -353,7 +353,7 @@ val settingsPatch = bytecodePatch(
         val moveResultIndex = getStringInvokeIndex + 1
         val titleStringRegister = compose.getInstruction<OneRegisterInstruction>(moveResultIndex).registerA
 
-        composeMutable.addInstruction(moveResultIndex + 1, "const-string v$titleStringRegister, \"Prism\"")
+        composeMutable.addInstruction(moveResultIndex + 1, "const-string v$titleStringRegister, \"Prisma\"")
 
         OpenDebugCellVmDefaultStateFingerprint.methodOrNull?.let { defaultState ->
             val constructorReference = defaultState.implementation!!.instructions.firstNotNullOfOrNull { instruction ->

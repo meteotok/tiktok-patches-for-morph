@@ -26,7 +26,7 @@ private val decorImagesPatch = resourcePatch {
         DECOR_IMAGES.forEach { key ->
             val name = "prism_decor_$key.png"
             val stream = object {}.javaClass.classLoader.getResourceAsStream("tiktok/decor/$name")
-                ?: throw PatchException("Prism UI: missing bundled resource $name")
+                ?: throw PatchException("Prisma UI: missing bundled resource $name")
             stream.use { Files.copy(it, drawables.resolve(name).toPath(), StandardCopyOption.REPLACE_EXISTING) }
         }
     }
@@ -34,7 +34,7 @@ private val decorImagesPatch = resourcePatch {
 
 @Suppress("unused")
 val prismUiPatch = bytecodePatch(
-    name = "Prism UI",
+    name = "Prisma UI",
     description = "Liquid glass bottom bar, color themes and nickname badges with a password protected Admin Panel.",
     default = true,
 ) {

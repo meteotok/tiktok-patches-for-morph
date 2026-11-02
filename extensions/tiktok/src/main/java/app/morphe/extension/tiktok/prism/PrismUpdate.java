@@ -32,8 +32,8 @@ import app.morphe.extension.tiktok.settings.Settings;
 @SuppressWarnings("unused")
 public final class PrismUpdate {
     /** Build number of this mod version. Bump together with gradle.properties. */
-    public static final int CURRENT_CODE = 816;
-    public static final String CURRENT_NAME = "0.8.16";
+    public static final int CURRENT_CODE = 817;
+    public static final String CURRENT_NAME = "0.8.17";
 
     private static final String[] MANIFEST_URLS = {
             "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/claude/project-thread-thdlg5/prism-update.json",
@@ -119,7 +119,7 @@ public final class PrismUpdate {
         String message = "Сейчас стоит " + CURRENT_NAME + ", вышла " + name + "."
                 + (notes.isEmpty() ? "" : "\n\n" + notes);
         new AlertDialog.Builder(activity)
-                .setTitle("Доступно обновление Prism")
+                .setTitle("Доступно обновление Prisma")
                 .setMessage(message)
                 .setPositiveButton("Обновить", (dialog, which) -> download(activity, name, url))
                 .setNegativeButton("Позже", null)
@@ -132,12 +132,12 @@ public final class PrismUpdate {
         try {
             DownloadManager manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
-                    .setTitle("Prism " + name)
-                    .setDescription("Обновление Prism")
+                    .setTitle("Prisma " + name)
+                    .setDescription("Обновление Prisma")
                     .setMimeType(APK_MIME)
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                     .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS,
-                            "prism-" + name + ".apk");
+                            "prisma-" + name + ".apk");
             long id = manager.enqueue(request);
             BroadcastReceiver receiver = new BroadcastReceiver() {
                 @Override
@@ -159,7 +159,7 @@ public final class PrismUpdate {
             } else {
                 context.registerReceiver(receiver, filter);
             }
-            Utils.showToastLong("Качаю Prism " + name + ", установщик откроется сам");
+            Utils.showToastLong("Качаю Prisma " + name + ", установщик откроется сам");
         } catch (Throwable throwable) {
             Logger.printDebug(() -> "Prism: update download failed: " + throwable);
             openInBrowser(activity, url);

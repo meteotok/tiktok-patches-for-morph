@@ -16,7 +16,7 @@ import app.morphe.extension.tiktok.settings.Settings;
 public enum PrismTheme {
     CLASSIC("classic", "Классика", "Цвета TikTok, светлая или тёмная по системе",
             0, rgb(254, 44, 85), rgb(37, 244, 238), 0, 0, 0),
-    PRISM("prism", "Prism", "Ночное небо, стекло и радужные блики",
+    PRISM("prism", "Prisma", "Ночное небо, стекло и радужные блики",
             1, rgb(139, 92, 246), rgb(34, 211, 238), rgb(14, 12, 34), rgb(5, 6, 18), rgb(240, 240, 255)),
     HALLOWEEN("halloween", "Хеллоуин", "Тыквы, ведьмы и фиолетовый туман",
             1, rgb(255, 122, 24), rgb(142, 45, 226), rgb(28, 12, 38), rgb(10, 5, 14), rgb(255, 236, 214)),

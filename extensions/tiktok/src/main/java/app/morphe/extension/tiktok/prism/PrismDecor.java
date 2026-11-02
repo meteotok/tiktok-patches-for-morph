@@ -62,6 +62,8 @@ public final class PrismDecor extends Drawable implements Runnable {
     /** Rectangles (left, top, right, bottom) of text inputs. */
     private float[] blocked = new float[0];
     private float topRightAlpha;
+    /** Where the last top-right piece ended up after moving clear of inputs. */
+    private float placedTop;
     private float bottomLeftAlpha;
 
     private PrismDecor(View host) {
@@ -269,8 +271,10 @@ public final class PrismDecor extends Drawable implements Runnable {
         }
         float scale = scaleFor(bitmap, maxWidth);
         float left = w - bitmap.getWidth() * scale;
+        top = belowInputs(left, w, bitmap.getHeight() * scale, top);
         rect.set(left, top, w, top + bitmap.getHeight() * scale);
         topRightAlpha = fade(topRightAlpha, rect);
+        placedTop = top;
         matrix.setScale(scale, scale);
         matrix.postTranslate(left, top);
         matrix.postRotate(sway(t, degrees), left + bitmap.getWidth() * scale * pivotX,
@@ -290,6 +294,7 @@ public final class PrismDecor extends Drawable implements Runnable {
         float scale = scaleFor(bitmap, maxWidth);
         float width = bitmap.getWidth() * scale;
         float left = w - width - rightGap;
+        top = belowInputs(left, left + width, bitmap.getHeight() * scale, top);
         rect.set(left, top, left + width, top + bitmap.getHeight() * scale);
         topRightAlpha = fade(topRightAlpha, rect);
         matrix.setScale(scale, scale);
@@ -307,6 +312,7 @@ public final class PrismDecor extends Drawable implements Runnable {
         }
         float scale = scaleFor(bitmap, maxWidth);
         float height = bitmap.getHeight() * scale;
+        bottom = aboveInputs(0, bitmap.getWidth() * scale, height, bottom);
         float y = bottom - height - lift;
         rect.set(0, y, bitmap.getWidth() * scale, y + height);
         bottomLeftAlpha = fade(bottomLeftAlpha, rect);
@@ -317,7 +323,46 @@ public final class PrismDecor extends Drawable implements Runnable {
         canvas.drawBitmap(bitmap, matrix, paint);
     }
 
-    /** Eases a piece's visibility toward hidden when it covers a text input. */
+    /**
+     * Lowest bottom edge for a bottom-left piece that keeps it clear of text inputs, such as
+     * the comment box under the video: the piece sits on top of the input instead.
+     */
+    private float aboveInputs(float left, float right, float height, float bottom) {
+        for (int pass = 0; pass < 3; pass++) {
+            boolean moved = false;
+            for (int i = 0; i + 3 < blocked.length; i += 4) {
+                if (left < blocked[i + 2] && blocked[i] < right
+                        && bottom - height < blocked[i + 3] && blocked[i + 1] < bottom) {
+                    bottom = blocked[i + 1] - 2 * dp;
+                    moved = true;
+                }
+            }
+            if (!moved) {
+                break;
+            }
+        }
+        return bottom;
+    }
+
+    /** Highest top edge for a top-right piece that keeps it clear of text inputs (search). */
+    private float belowInputs(float left, float right, float height, float top) {
+        for (int pass = 0; pass < 3; pass++) {
+            boolean moved = false;
+            for (int i = 0; i + 3 < blocked.length; i += 4) {
+                if (left < blocked[i + 2] && blocked[i] < right
+                        && top < blocked[i + 3] && blocked[i + 1] < top + height) {
+                    top = blocked[i + 3] + 2 * dp;
+                    moved = true;
+                }
+            }
+            if (!moved) {
+                break;
+            }
+        }
+        return top;
+    }
+
+    /** Eases a piece's visibility toward hidden when it still covers a text input. */
     private float fade(float current, RectF area) {
         float target = 1f;
         for (int i = 0; i + 3 < blocked.length; i += 4) {
@@ -333,7 +378,8 @@ public final class PrismDecor extends Drawable implements Runnable {
 
     private void halloween(Canvas canvas, float w, float top, float bottom, float t) {
         float swayDegrees = 1.1f;
-        float scale = topRight(canvas, "web_tr", w, top, 0.56f * w, swayDegrees, 1f, 0f, 1f, t);
+        float scale = topRight(canvas, "web_tr", w, top, 0.4f * w, swayDegrees, 1f, 0f, 1f, t);
+        top = placedTop;
         bottomLeft(canvas, "web_bl", w, bottom, 0.5f * w, 1.4f, 0f, 0f, 1f, t);
         Bitmap web = image("web_tr");
         Bitmap spider = image("spider");
@@ -383,6 +429,7 @@ public final class PrismDecor extends Drawable implements Runnable {
             return;
         }
         // A column of bubbles rising from the bottom-left corner, and a few in the top right.
+        bottom = aboveInputs(0, 100 * dp, 180 * dp, bottom);
         rect.set(0, bottom - 180 * dp, 100 * dp, bottom);
         bottomLeftAlpha = fade(bottomLeftAlpha, rect);
         for (int i = 0; i < 6; i++) {

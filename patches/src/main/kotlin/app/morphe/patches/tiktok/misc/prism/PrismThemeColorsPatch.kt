@@ -46,8 +46,8 @@ private fun MethodReference.colorBridgeReceiver(): String? {
 
 @Suppress("unused")
 val prismThemeColorsPatch = bytecodePatch(
-    name = "Prism theme colors",
-    description = "Applies the Prism theme chosen in the mod settings to TikTok's own buttons, " +
+    name = "Prisma theme colors",
+    description = "Applies the Prisma theme chosen in the mod settings to TikTok's own buttons, " +
         "highlights and accents by recoloring TikTok's brand red and cyan.",
     default = true,
 ) {
