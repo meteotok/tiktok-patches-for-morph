@@ -152,6 +152,13 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting COPY_COMMENTS_WITHOUT_USERNAME = new BooleanSetting("copy_comments_without_username", TRUE);
     public static final FloatSetting REMEMBERED_SPEED = new FloatSetting("remembered_speed_v3", 1.0f);
     public static final BooleanSetting ENABLE_LONG_PRESS_SPEED_LOCK = new BooleanSetting("enable_long_press_speed_lock", FALSE, true);
+    public static final BooleanSetting NEW_PROFILE_LAYOUT = new BooleanSetting("new_profile_layout", TRUE, true);
+    public static final IntegerSetting NEW_PROFILE_LAYOUT_VARIANT = new IntegerSetting(
+            "new_profile_layout_variant",
+            1,
+            true,
+            Setting.parent(NEW_PROFILE_LAYOUT)
+    );
     public static final BooleanSetting HOLD_ANYWHERE_2X = new BooleanSetting("hold_anywhere_2x", TRUE, true);
     public static final BooleanSetting DISABLE_LONG_PRESS_QUICK_SHARE =
             new BooleanSetting("disable_long_press_quick_share", FALSE);

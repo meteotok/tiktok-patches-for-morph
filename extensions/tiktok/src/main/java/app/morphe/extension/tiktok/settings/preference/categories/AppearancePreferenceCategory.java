@@ -9,6 +9,7 @@ import app.morphe.extension.tiktok.prism.PrismIcons;
 import app.morphe.extension.tiktok.prism.PrismTheme;
 import app.morphe.extension.tiktok.settings.Settings;
 import app.morphe.extension.tiktok.settings.preference.SettingsMenuPreference;
+import app.morphe.extension.tiktok.settings.preference.NumberInputPreference;
 import app.morphe.extension.tiktok.settings.preference.TogglePreference;
 
 /** Prism look: theme, launcher icon, liquid glass and badges. */
@@ -56,6 +57,20 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
                 }
         ));
 
+        addPreference(new TogglePreference(
+                context,
+                "Новый профиль",
+                "Новая раскладка профиля из свежего TikTok (всё выровнено по левому краю), даже если сервер её тебе ещё не включил. Нужен перезапуск.",
+                Settings.NEW_PROFILE_LAYOUT
+        ));
+        addPreference(new NumberInputPreference(
+                context,
+                "Вариант нового профиля",
+                "TikTok тестирует 4 варианта новой раскладки (1–4), например с аватаркой справа. Нужен перезапуск.",
+                Settings.NEW_PROFILE_LAYOUT_VARIANT,
+                1,
+                4
+        ));
         addPreference(new TogglePreference(
                 context,
                 "Украшения темы",
