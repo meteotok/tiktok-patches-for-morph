@@ -71,6 +71,7 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
                 1,
                 4
         ));
+        addPreference(new app.morphe.extension.tiktok.settings.preference.ProfileDebugPreference(context));
         addPreference(new TogglePreference(
                 context,
                 "Украшения темы",

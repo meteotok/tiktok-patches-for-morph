@@ -1,6 +1,7 @@
 package app.morphe.patches.tiktok.misc.profilelayout
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
@@ -103,5 +104,18 @@ val newProfileLayoutPatch = bytecodePatch(
         ProfileAvatarOptFingerprint.method.overrideExperimentValue("profile_left_align_avatar_opt", "forceOn", "Z")
         ProfileBgAllowListFingerprint.method.overrideExperimentValue("profile_bg_in_allow_list", "banner")
         ProfileBgConsumptionFingerprint.method.overrideExperimentValue("profile_bg_enable_consumption_group", "banner")
+
+        // Diagnostics: remember the component tree the server sent, copyable from settings.
+        mutableClassDefByOrNull("Lcom/ss/android/ugc/profile/platform/base/viewmodel/ProfilePlatformViewModel;")
+            ?.methods
+            ?.firstOrNull {
+                it.parameterTypes.size == 5 &&
+                    it.parameterTypes[1] == "Lcom/ss/android/ugc/profile/platform/base/data/ProfileUser;" &&
+                    it.returnType == "V"
+            }
+            ?.addInstruction(
+                0,
+                "invoke-static/range { p2 .. p2 }, Lapp/morphe/extension/tiktok/profile/ProfileDebug;->onProfile(Ljava/lang/Object;)V",
+            )
     }
 }
