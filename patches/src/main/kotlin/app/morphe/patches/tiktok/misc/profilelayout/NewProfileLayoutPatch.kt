@@ -34,8 +34,36 @@ internal object ProfileLeftAlignGroupFingerprint : Fingerprint(
     custom = { _, classDef -> classDef.fields.count() == 1 && classDef.fields.single().type == "I" },
 )
 
-/** Passes the int read right after [key] through [hook]. */
-private fun MutableMethod.overrideExperimentValue(key: String, hook: String) {
+// Sub-flags of the new layout: without them the containers that hold the follower
+// counts and "Edit profile" are never registered, so the server's blocks are dropped.
+internal object ProfileAvatarInfoMergeFingerprint : Fingerprint(
+    name = "<clinit>",
+    returnType = "V",
+    parameters = emptyList(),
+    strings = listOf("profile_left_align_avatar_and_info_merge"),
+    custom = { _, classDef -> classDef.fields.count() == 1 && classDef.fields.single().type == "Z" },
+)
+
+internal object ProfileAvatarOptFingerprint : Fingerprint(
+    name = "invoke",
+    returnType = "Ljava/lang/Object;",
+    parameters = emptyList(),
+    strings = listOf("profile_left_align_avatar_opt"),
+)
+
+// TikTok's own profile banner ("profile background").
+internal object ProfileBgAllowListFingerprint : Fingerprint(
+    strings = listOf("profile_bg_in_allow_list", "ProfileBackgroundExp"),
+)
+
+internal object ProfileBgConsumptionFingerprint : Fingerprint(
+    returnType = "Ljava/lang/Object;",
+    strings = listOf("profile_bg_enable_consumption_group"),
+    custom = { method, _ -> method.name.startsWith("invoke") },
+)
+
+/** Passes the value read right after [key] through [hook] (type [type], I or Z). */
+private fun MutableMethod.overrideExperimentValue(key: String, hook: String, type: String = "I") {
     val keyIndex = instructions.indexOfFirst {
         it.opcode.name.startsWith("const-string") &&
             ((it as ReferenceInstruction).reference as StringReference).string == key
@@ -48,7 +76,7 @@ private fun MutableMethod.overrideExperimentValue(key: String, hook: String) {
     addInstructions(
         resultIndex + 1,
         """
-            invoke-static { v$register }, $EXTENSION->$hook(I)I
+            invoke-static { v$register }, $EXTENSION->$hook($type)$type
             move-result v$register
         """,
     )
@@ -68,5 +96,12 @@ val newProfileLayoutPatch = bytecodePatch(
     execute {
         ProfileLeftAlignFingerprint.method.overrideExperimentValue("profile_left_align", "leftAlign")
         ProfileLeftAlignGroupFingerprint.method.overrideExperimentValue("profile_left_align_ab_group", "leftAlignGroup")
+        ProfileAvatarInfoMergeFingerprint.method.overrideExperimentValue(
+            "profile_left_align_avatar_and_info_merge",
+            "leftAlign",
+        )
+        ProfileAvatarOptFingerprint.method.overrideExperimentValue("profile_left_align_avatar_opt", "forceOn", "Z")
+        ProfileBgAllowListFingerprint.method.overrideExperimentValue("profile_bg_in_allow_list", "banner")
+        ProfileBgConsumptionFingerprint.method.overrideExperimentValue("profile_bg_enable_consumption_group", "banner")
     }
 }
