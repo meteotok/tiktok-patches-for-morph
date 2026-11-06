@@ -470,6 +470,10 @@ val feedFilterPatch = bytecodePatch(
             }
         }
 
+        // Ads outside the feed responses: every video pager (Series, search/profile detail),
+        // splash/TopView, Series blocking ads.
+        installAdBlockHooks()
+
         TakoAiFeedButtonSetVisibleFingerprint.method.addInstructions(
             0,
             """

@@ -268,7 +268,8 @@ public final class FeedItemsFilter {
                 ? ((SearchMixFeed) container).getAweme()
                 : null,
             container -> container instanceof SearchMixFeed
-                && ((SearchMixFeed) container).isAdOrContainAd(),
+                && (((SearchMixFeed) container).isAdOrContainAd()
+                    || (AdBlock.enabled() && AdBlock.isSearchAdCard(container))),
             List.of(ADS_FILTER),
             List.of(),
             false,
