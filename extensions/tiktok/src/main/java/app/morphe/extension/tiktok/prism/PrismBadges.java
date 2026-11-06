@@ -260,6 +260,9 @@ public final class PrismBadges {
             if (type == null || name.endsWith(type.emoji)) {
                 return name;
             }
+            if (!name.isEmpty() && name.indexOf(MARKER) < 0) {
+                badgedNames.put(name, type);
+            }
             return name + " " + MARKER + type.emoji;
         } catch (Throwable ignored) {
             return name;
@@ -357,6 +360,50 @@ public final class PrismBadges {
     // endregion
 
     // region text decoration
+
+    /** Display names that got a badge from the name hook, so other copies of the name get it too. */
+    private static final Map<String, Type> badgedNames = new ConcurrentHashMap<>();
+
+    /**
+     * Called at the start of TikTok's TuxTextView.setText, so the sticker image is there from
+     * the first frame instead of the emoji (or nothing) until the next view scan.
+     */
+    public static CharSequence decorateText(CharSequence text) {
+        try {
+            if (text == null || text.length() < 1 || text.length() > 80) {
+                return text;
+            }
+            if (text instanceof Spanned && ((Spanned) text).getSpans(0, text.length(), BadgeSpan.class).length > 0) {
+                return text;
+            }
+            String string = text.toString();
+            int marker = string.lastIndexOf(MARKER);
+            Type type = null;
+            SpannableStringBuilder builder;
+            if (marker >= 0) {
+                String emoji = string.substring(marker + MARKER.length());
+                for (Type t : Type.values()) {
+                    if (t.emoji.equals(emoji)) {
+                        type = t;
+                        break;
+                    }
+                }
+                if (type == null) return text;
+                builder = new SpannableStringBuilder(text);
+            } else {
+                if (badgedNames.isEmpty() || !enabled()) return text;
+                type = badgedNames.get(string);
+                if (type == null) return text;
+                builder = new SpannableStringBuilder(text).append(" ").append(MARKER).append(type.emoji);
+                marker = builder.length() - MARKER.length() - type.emoji.length();
+            }
+            if (bitmap(type) == null) return text;
+            builder.setSpan(new BadgeSpan(type), marker, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return builder;
+        } catch (Throwable ignored) {
+            return text;
+        }
+    }
 
     /** Swaps the badge emoji our name hook added for the sticker image. Returns true if changed. */
     public static boolean decorate(TextView view) {

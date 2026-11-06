@@ -60,7 +60,7 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
         addPreference(new TogglePreference(
                 context,
                 "Новый профиль",
-                "Новая раскладка профиля из свежего TikTok (всё выровнено по левому краю), даже если сервер её тебе ещё не включил. Нужен перезапуск.",
+                "Экспериментально: новая раскладка профиля из свежего TikTok, даже если сервер её тебе ещё не включил. Пока с ней могут пропадать счётчики и «Изменить профиль». Нужен перезапуск.",
                 Settings.NEW_PROFILE_LAYOUT
         ));
         addPreference(new NumberInputPreference(

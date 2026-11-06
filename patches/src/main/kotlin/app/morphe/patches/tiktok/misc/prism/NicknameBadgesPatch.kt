@@ -82,5 +82,20 @@ val nicknameBadgesPatch = bytecodePatch(
                 }
         }
         if (hooked == 0) throw PatchException("Nickname badges: no user model name getters found")
+
+        // Draw the sticker image as soon as TikTok sets the name text, not on the next view scan.
+        mutableClassDefByOrNull("Lcom/bytedance/tux/input/TuxTextView;")
+            ?.methods
+            ?.firstOrNull {
+                it.name == "setText" &&
+                    it.parameterTypes == listOf("Ljava/lang/CharSequence;", "Landroid/widget/TextView${'$'}BufferType;")
+            }
+            ?.addInstructions(
+                0,
+                """
+                    invoke-static/range { p1 .. p1 }, $PRISM_BADGES->decorateText(Ljava/lang/CharSequence;)Ljava/lang/CharSequence;
+                    move-result-object p1
+                """,
+            )
     }
 }

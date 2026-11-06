@@ -62,7 +62,20 @@ public class TikTokActivityHook {
         LinearLayout linearLayout = new LinearLayout(base);
         linearLayout.setLayoutParams(new LinearLayout.LayoutParams(-1, -1));
         linearLayout.setOrientation(LinearLayout.VERTICAL);
-        linearLayout.setFitsSystemWindows(true);
+        // TikTok draws edge to edge, so fitsSystemWindows alone left the header under the
+        // status bar on some phones. Pad by the system bar insets explicitly.
+        linearLayout.setOnApplyWindowInsetsListener((v, insets) -> {
+            int top = insets.getSystemWindowInsetTop();
+            int bottom = insets.getSystemWindowInsetBottom();
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(
+                        android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout());
+                top = bars.top;
+                bottom = bars.bottom;
+            }
+            v.setPadding(0, top, 0, bottom);
+            return insets;
+        });
         linearLayout.setTransitionGroup(true);
 
         FrameLayout fragment = new FrameLayout(base);
