@@ -70,7 +70,7 @@ public class DownloadPathPreference extends DialogPreference {
     public void applyPickedPath(String path) {
         try {
             setValue(DownloadDestination.validate(path, kind));
-            app.morphe.extension.shared.Utils.showToastShort("Download path updated");
+            app.morphe.extension.shared.Utils.showToastShort("Папка загрузок изменена");
         } catch (IllegalArgumentException ex) {
             app.morphe.extension.shared.Utils.showToastLong(ex.getMessage());
         }
@@ -87,7 +87,7 @@ public class DownloadPathPreference extends DialogPreference {
         int padding = SettingsUi.dp(context, 22);
         dialogView.setPadding(padding, padding, padding, SettingsUi.dp(context, 8));
 
-        TextView title = SettingsUi.text(context, "Download path", 20, SettingsUi.textPrimary(), Typeface.BOLD);
+        TextView title = SettingsUi.text(context, "Папка загрузок", 20, SettingsUi.textPrimary(), Typeface.BOLD);
         dialogView.addView(title, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -95,7 +95,7 @@ public class DownloadPathPreference extends DialogPreference {
 
         TextView helper = SettingsUi.text(
                 context,
-                "Choose a subfolder under " + DownloadDestination.allowedRoots(kind) + ".",
+                "Выбери подпапку в " + DownloadDestination.allowedRoots(kind) + ".",
                 14,
                 SettingsUi.textSecondary(),
                 Typeface.NORMAL
@@ -145,9 +145,9 @@ public class DownloadPathPreference extends DialogPreference {
 
     @Override
     protected void onPrepareDialogBuilder(AlertDialog.Builder builder) {
-        builder.setPositiveButton("Save", (dialog, which) -> this.onClick(dialog, DialogInterface.BUTTON_POSITIVE));
+        builder.setPositiveButton("Сохранить", (dialog, which) -> this.onClick(dialog, DialogInterface.BUTTON_POSITIVE));
         builder.setNegativeButton(android.R.string.cancel, null);
-        builder.setNeutralButton("Browse", null);
+        builder.setNeutralButton("Обзор", null);
     }
 
     @Override

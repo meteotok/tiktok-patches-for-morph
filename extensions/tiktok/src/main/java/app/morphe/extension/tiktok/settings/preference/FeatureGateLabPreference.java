@@ -15,7 +15,7 @@ public final class FeatureGateLabPreference extends Preference {
     public FeatureGateLabPreference(Activity activity) {
         super(activity);
         setTitle("Feature Gate Lab");
-        setSummary("Search local TikTok gate metadata and configure isolated typed overrides.");
+        setSummary("Поиск по флагам TikTok и их переопределение.");
         setOnPreferenceClickListener(preference -> {
             FeatureGateLabFragment.open(activity);
             return true;

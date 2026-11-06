@@ -89,7 +89,7 @@ public class InputTextPreference extends EditTextPreference {
 
     @Override
     protected void onPrepareDialogBuilder(AlertDialog.Builder builder) {
-        builder.setPositiveButton("Save", (dialog, which)
+        builder.setPositiveButton("Сохранить", (dialog, which)
                 -> this.onClick(dialog, DialogInterface.BUTTON_POSITIVE));
         builder.setNegativeButton(android.R.string.cancel, null);
     }

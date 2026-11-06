@@ -20,7 +20,7 @@ public final class DownloadQualityPreference extends Preference {
         super(context);
         this.setting = setting;
         setPersistent(false);
-        setTitle("Video quality");
+        setTitle("Качество видео");
         refreshSummary();
     }
 
@@ -40,7 +40,7 @@ public final class DownloadQualityPreference extends Preference {
         }
 
         AlertDialog dialog = new AlertDialog.Builder(getContext())
-                .setTitle("Video quality")
+                .setTitle("Качество видео")
                 .setSingleChoiceItems(labels, checkedItem, (dialogInterface, which) -> {
                     if (which >= 0 && which < qualities.length) {
                         setting.save(qualities[which].key);

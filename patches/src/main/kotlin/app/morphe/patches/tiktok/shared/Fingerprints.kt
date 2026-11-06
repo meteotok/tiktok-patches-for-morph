@@ -23,6 +23,9 @@ internal object OnRenderFirstFrameFingerprint : Fingerprint(
     definingClass = "/feed/controller/PlayerController;",
     name = "onRenderFirstFrame",
     returnType = "V",
-    parameters = listOf("LX/0pb0;"),
+    // The obfuscated event type changes between releases (LX/0pb0; on 46.2.3, LX/09n1; on 47.5.3).
+    custom = { method, _ ->
+        method.parameterTypes.size == 1 && method.parameterTypes.single().startsWith("LX/")
+    },
 )
 

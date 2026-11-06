@@ -24,6 +24,8 @@ public final class LikeCountFilter implements IFilter {
     public boolean getFiltered(Aweme item) {
         AwemeStatistics statistics = item.getStatistics();
         if (statistics == null) return false;
+        // A video opened from a link always plays, whatever its likes.
+        if (LinkOpenExemption.isExempt(item)) return false;
 
         long likeCount = statistics.getDiggCount();
         return likeCount < minLike || likeCount > maxLike;

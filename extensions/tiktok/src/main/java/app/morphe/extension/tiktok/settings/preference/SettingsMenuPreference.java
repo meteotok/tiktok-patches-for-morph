@@ -36,7 +36,11 @@ public final class SettingsMenuPreference extends Preference {
         BEHAVIOR,
         LAB,
         DIAGNOSTICS,
-        SHARE
+        SHARE,
+        PALETTE,
+        APPS,
+        LOCK,
+        BADGE
     }
 
     private static final int ACCESSORY_TAG = 0x4D4D454E;
@@ -61,14 +65,15 @@ public final class SettingsMenuPreference extends Preference {
     @Override
     protected View onCreateView(ViewGroup parent) {
         Context context = getContext();
+        // Flat row like TikTok's own "Settings and privacy" list.
         LinearLayout row = new LinearLayout(context);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setMinimumHeight(SettingsUi.dp(context, 68));
+        row.setMinimumHeight(SettingsUi.dp(context, 56));
         row.setPadding(
-                SettingsUi.dp(context, 20),
+                SettingsUi.dp(context, 16),
                 SettingsUi.dp(context, 8),
-                SettingsUi.dp(context, 20),
+                SettingsUi.dp(context, 12),
                 SettingsUi.dp(context, 8)
         );
 
@@ -77,33 +82,33 @@ public final class SettingsMenuPreference extends Preference {
         ImageView icon = new ImageView(context);
         icon.setId(android.R.id.icon);
         iconFrame.addView(icon, new FrameLayout.LayoutParams(
-                SettingsUi.dp(context, 40),
-                SettingsUi.dp(context, 40),
+                SettingsUi.dp(context, 24),
+                SettingsUi.dp(context, 24),
                 Gravity.CENTER
         ));
         row.addView(iconFrame, new LinearLayout.LayoutParams(
-                SettingsUi.dp(context, 40),
-                SettingsUi.dp(context, 40)
+                SettingsUi.dp(context, 24),
+                SettingsUi.dp(context, 24)
         ));
 
         LinearLayout labels = new LinearLayout(context);
         labels.setGravity(Gravity.CENTER_VERTICAL);
         labels.setOrientation(LinearLayout.VERTICAL);
 
-        TextView title = SettingsUi.text(context, "", 15.5f, SettingsUi.textPrimary(), 1);
+        TextView title = SettingsUi.text(context, "", 16f, SettingsUi.textPrimary(), 0);
         title.setId(android.R.id.title);
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
         labels.addView(title, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView summary = SettingsUi.text(context, "", 12.8f, SettingsUi.textSecondary(), 0);
+        TextView summary = SettingsUi.text(context, "", 13f, SettingsUi.textSecondary(), 0);
         summary.setId(android.R.id.summary);
         summary.setSingleLine(true);
         summary.setEllipsize(TextUtils.TruncateAt.END);
         labels.addView(summary, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -2, 1);
-        labelParams.leftMargin = SettingsUi.dp(context, 14);
+        labelParams.leftMargin = SettingsUi.dp(context, 12);
         labelParams.rightMargin = SettingsUi.dp(context, 10);
         row.addView(labels, labelParams);
 
@@ -118,7 +123,7 @@ public final class SettingsMenuPreference extends Preference {
     protected void onBindView(View view) {
         super.onBindView(view);
         SettingsUi.styleTitleAndSummary(view);
-        view.setMinimumHeight(SettingsUi.dp(getContext(), 68));
+        view.setMinimumHeight(SettingsUi.dp(getContext(), 56));
         styleText(view);
         styleIcon(view);
         addAccessory(view);
@@ -127,15 +132,15 @@ public final class SettingsMenuPreference extends Preference {
     private void styleText(View view) {
         TextView title = view.findViewById(android.R.id.title);
         if (title != null) {
-            title.setTextSize(15.5f);
-            title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            title.setTextSize(16f);
+            title.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
             title.setSingleLine(true);
             title.setEllipsize(TextUtils.TruncateAt.END);
         }
 
         TextView summary = view.findViewById(android.R.id.summary);
         if (summary != null) {
-            summary.setTextSize(12.8f);
+            summary.setTextSize(13f);
             summary.setSingleLine(true);
             summary.setEllipsize(TextUtils.TruncateAt.END);
         }
@@ -146,7 +151,7 @@ public final class SettingsMenuPreference extends Preference {
         if (icon == null) {
             return;
         }
-        int size = SettingsUi.dp(getContext(), 40);
+        int size = SettingsUi.dp(getContext(), 24);
         ViewGroup.LayoutParams params = icon.getLayoutParams();
         params.width = size;
         params.height = size;
@@ -178,10 +183,10 @@ public final class SettingsMenuPreference extends Preference {
         if (activeCount > 0) {
             TextView badge = SettingsUi.text(
                     getContext(),
-                    activeCount + " on",
-                    11.5f,
-                    SettingsUi.ACCENT,
-                    1
+                    "вкл · " + activeCount,
+                    14f,
+                    SettingsUi.textSecondary(),
+                    0
             );
             badge.setGravity(Gravity.CENTER);
             badge.setPadding(
@@ -190,7 +195,7 @@ public final class SettingsMenuPreference extends Preference {
                     SettingsUi.dp(getContext(), 9),
                     SettingsUi.dp(getContext(), 3)
             );
-            badge.setBackground(new BadgeDrawable());
+
             accessory.addView(badge);
         }
 
@@ -209,7 +214,8 @@ public final class SettingsMenuPreference extends Preference {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         BadgeDrawable() {
-            paint.setColor(Color.argb(SettingsUi.isDarkMode() ? 38 : 24, 240, 45, 99));
+            paint.setColor(app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(
+                    SettingsUi.ACCENT, SettingsUi.isDarkMode() ? 0.18f : 0.14f));
         }
 
         @Override
@@ -279,17 +285,10 @@ public final class SettingsMenuPreference extends Preference {
 
         MenuIconDrawable(Icon icon) {
             this.icon = icon;
-            fill.setColor(SettingsUi.isDarkMode()
-                    ? Color.argb(255, 23, 23, 29)
-                    : Color.argb(255, 246, 246, 248));
-            border.setColor(SettingsUi.isDarkMode()
-                    ? Color.argb(255, 48, 48, 56)
-                    : Color.argb(255, 224, 224, 228));
+            border.setColor(app.morphe.extension.tiktok.prism.PrismTheme.withAlpha(SettingsUi.ACCENT, 0.55f));
             border.setStyle(Paint.Style.STROKE);
-            border.setStrokeWidth(1f);
-            line.setColor(SettingsUi.isDarkMode()
-                    ? Color.argb(255, 207, 207, 215)
-                    : Color.argb(255, 72, 72, 78));
+            border.setStrokeWidth(1.2f);
+            line.setColor(SettingsUi.textPrimary());
             line.setStyle(Paint.Style.STROKE);
             line.setStrokeWidth(1.8f);
             line.setStrokeCap(Paint.Cap.ROUND);
@@ -299,14 +298,11 @@ public final class SettingsMenuPreference extends Preference {
         @Override
         public void draw(Canvas canvas) {
             RectF bounds = new RectF(getBounds());
-            float radius = bounds.width() * 0.28f;
-            canvas.drawRoundRect(bounds, radius, radius, fill);
-            canvas.drawRoundRect(bounds, radius, radius, border);
-
-            float left = bounds.left + bounds.width() * 0.27f;
-            float right = bounds.right - bounds.width() * 0.27f;
-            float top = bounds.top + bounds.height() * 0.27f;
-            float bottom = bounds.bottom - bounds.height() * 0.27f;
+            line.setStrokeWidth(Math.max(1.5f, bounds.width() * 0.075f));
+            float left = bounds.left + bounds.width() * 0.1f;
+            float right = bounds.right - bounds.width() * 0.1f;
+            float top = bounds.top + bounds.height() * 0.1f;
+            float bottom = bounds.bottom - bounds.height() * 0.1f;
             float cx = bounds.centerX();
             float cy = bounds.centerY();
 
@@ -384,6 +380,42 @@ public final class SettingsMenuPreference extends Preference {
                     canvas.drawLine(left, cy, cx - bounds.width() * 0.16f, cy, line);
                     canvas.drawLine(cx + bounds.width() * 0.16f, cy, right, cy, line);
                     break;
+                case PALETTE: {
+                    canvas.drawCircle(cx, cy, bounds.width() * 0.23f, line);
+                    float dot = bounds.width() * 0.045f;
+                    canvas.drawCircle(cx - bounds.width() * 0.09f, cy - bounds.height() * 0.08f, dot, line);
+                    canvas.drawCircle(cx + bounds.width() * 0.07f, cy - bounds.height() * 0.1f, dot, line);
+                    canvas.drawCircle(cx + bounds.width() * 0.11f, cy + bounds.height() * 0.05f, dot, line);
+                    break;
+                }
+                case APPS: {
+                    float gap = bounds.width() * 0.05f;
+                    float size = (right - left - gap) / 2f;
+                    float r = size * 0.32f;
+                    canvas.drawRoundRect(new RectF(left, top, left + size, top + size), r, r, line);
+                    canvas.drawRoundRect(new RectF(right - size, top, right, top + size), r, r, line);
+                    canvas.drawRoundRect(new RectF(left, bottom - size, left + size, bottom), r, r, line);
+                    canvas.drawRoundRect(new RectF(right - size, bottom - size, right, bottom), r, r, line);
+                    break;
+                }
+                case LOCK: {
+                    RectF body = new RectF(left, cy - bounds.height() * 0.02f, right, bottom);
+                    canvas.drawRoundRect(body, bounds.width() * 0.06f, bounds.width() * 0.06f, line);
+                    RectF shackle = new RectF(cx - bounds.width() * 0.13f, top - bounds.height() * 0.02f,
+                            cx + bounds.width() * 0.13f, cy + bounds.height() * 0.18f);
+                    canvas.drawArc(shackle, 180, 180, false, line);
+                    canvas.drawLine(cx, cy + bounds.height() * 0.08f, cx, cy + bounds.height() * 0.14f, line);
+                    break;
+                }
+                case BADGE: {
+                    path.reset();
+                    path.moveTo(cx - bounds.width() * 0.12f, cy);
+                    path.lineTo(cx - bounds.width() * 0.03f, cy + bounds.height() * 0.09f);
+                    path.lineTo(cx + bounds.width() * 0.13f, cy - bounds.height() * 0.08f);
+                    canvas.drawCircle(cx, cy, bounds.width() * 0.23f, line);
+                    canvas.drawPath(path, line);
+                    break;
+                }
                 case SHARE: {
                     float nodeRadius = bounds.width() * 0.055f;
                     float startX = left;

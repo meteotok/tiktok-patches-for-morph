@@ -12,13 +12,15 @@ private const val CRASH_CAPTURE_INITIALIZER =
     "Lapp/morphe/extension/tiktok/diagnostics/JavaCrashCapture;->initialize(Landroid/content/Context;)V"
 
 @Suppress("unused")
-val enableOpenDebugPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val enableOpenDebugPatch = bytecodePatch(
     name = "Diagnostic tools",
     description = "Adds diagnostic logging, crash capture, reports, and an optional rolling feed debugger.",
     default = false,
 ) {
     dependsOn(sharedExtensionPatch, settingsPatch, feedObservationProbeHooksPatch)
 
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

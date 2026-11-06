@@ -14,7 +14,8 @@ import app.morphe.patches.tiktok.misc.settings.SettingsStatusLoadFingerprint
 private const val EXTENSION_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/foldable/FoldableSplitView;"
 
 @Suppress("unused")
-val foldableSplitViewPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val foldableSplitViewPatch = bytecodePatch(
     name = "Foldable split comment view",
     description = "Forces TikTok's tablet-style split layout (video beside comments instead of a bottom sheet) " +
         "once the screen is at least as wide as a configurable threshold, for foldables TikTok doesn't " +
@@ -23,6 +24,7 @@ val foldableSplitViewPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch)
 
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

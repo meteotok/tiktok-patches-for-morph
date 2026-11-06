@@ -5,9 +5,9 @@
 package app.morphe.extension.tiktok.download;
 
 public enum DownloadQuality {
-    HIGH("high", "High", "Best available complete video"),
-    MEDIUM("medium", "Medium", "Balanced quality and file size"),
-    LOW("low", "Low", "Smallest available complete video");
+    HIGH("high", "Высокое", "Лучшее доступное качество"),
+    MEDIUM("medium", "Среднее", "Баланс качества и размера"),
+    LOW("low", "Низкое", "Самый маленький файл");
 
     public final String key;
     public final String label;
