@@ -81,7 +81,7 @@ val hideCaptchaPopupsPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
-    compatibleWith(*AppCompatibilities.tiktok4763())
+    compatibleWith(*AppCompatibilities.tiktok4773())
 
     execute {
         // Secure-API callback (a class): its fail/cancel method keeps the stock LIZJ()V name.

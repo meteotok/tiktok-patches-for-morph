@@ -32,9 +32,9 @@ internal object AclCommonShare3Fingerprint : Fingerprint(
 )
 
 // Obfuscated names below are for TikTok 47.6.3 (46.2.3: 0L4Q, 0L4G, 0ULN, 0ULM, 0UL9, 0GSy, 0ULU, 16zb).
-// MediaStore helper: LX/01BF; on 47.5.3, LX/01BG; on 47.6.3 (method names unchanged).
+// MediaStore helper: LX/01BF; on 47.5.3, LX/01BG; on 47.6.3, LX/0LxY; on 47.7.3 (method names unchanged).
 // Both are accepted so one bundle patches either release.
-internal val MEDIA_STORE_HELPER_DESCRIPTORS = setOf("LX/01BF;", "LX/01BG;")
+internal val MEDIA_STORE_HELPER_DESCRIPTORS = setOf("LX/01BF;", "LX/01BG;", "LX/0LxY;")
 
 internal object VideoDownloadUriFingerprint : Fingerprint(
     name = "LIZLLL",
@@ -173,20 +173,27 @@ internal object ImagePostMediaCopyFingerprint : Fingerprint(
     },
 )
 
-// Owner renamed every release (47.5.3: LX/14fh;->LJ, 47.6.3: LX/0qLO;->LJ); the parameter list is unique.
+// Owner renamed every release (47.5.3: LX/14fh;->LJ, 47.6.3: LX/0qLO;->LJ, 47.7.3: LX/0jPq;->LJI).
+// 47.7.3 appended (Function2, Long) parameters, so match the stable leading parameters only.
+private val STICKER_PREVIEW_SOURCE_PARAMS = listOf(
+    "Ljava/lang/String;",
+    "Lcom/ss/android/ugc/aweme/im/common/model/StickerItem;",
+    "Landroid/view/View;",
+    "Z",
+    "Ljava/lang/String;",
+    "Ljava/util/Map;",
+    "Lkotlin/jvm/functions/Function0;",
+    "Lkotlin/jvm/functions/Function0;",
+    "Lkotlin/jvm/functions/Function0;",
+)
+
 internal object StickerPreviewSourceFingerprint : Fingerprint(
     returnType = "V",
-    parameters = listOf(
-        "Ljava/lang/String;",
-        "Lcom/ss/android/ugc/aweme/im/common/model/StickerItem;",
-        "Landroid/view/View;",
-        "Z",
-        "Ljava/lang/String;",
-        "Ljava/util/Map;",
-        "Lkotlin/jvm/functions/Function0;",
-        "Lkotlin/jvm/functions/Function0;",
-        "Lkotlin/jvm/functions/Function0;",
-    ),
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size >= STICKER_PREVIEW_SOURCE_PARAMS.size &&
+            params.subList(0, STICKER_PREVIEW_SOURCE_PARAMS.size) == STICKER_PREVIEW_SOURCE_PARAMS
+    },
 )
 
 internal object DownloadSuccessCoroutineFingerprint : Fingerprint(

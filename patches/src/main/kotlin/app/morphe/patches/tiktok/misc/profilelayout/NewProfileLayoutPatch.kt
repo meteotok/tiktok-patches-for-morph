@@ -45,11 +45,11 @@ internal object ProfileAvatarInfoMergeFingerprint : Fingerprint(
     custom = { _, classDef -> classDef.fields.count() == 1 && classDef.fields.single().type == "Z" },
 )
 
+// 47.6.3: lambda invoke()Object; 47.7.3: merged static invoke$NNNN(lambda)Object.
 internal object ProfileAvatarOptFingerprint : Fingerprint(
-    name = "invoke",
     returnType = "Ljava/lang/Object;",
-    parameters = emptyList(),
     strings = listOf("profile_left_align_avatar_opt"),
+    custom = { method, _ -> method.name.startsWith("invoke") && method.parameterTypes.size <= 1 },
 )
 
 // TikTok's own profile banner ("profile background").
@@ -92,7 +92,7 @@ val newProfileLayoutPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch, settingsPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4763())
+    compatibleWith(*AppCompatibilities.tiktok4773())
 
     execute {
         ProfileLeftAlignFingerprint.method.overrideExperimentValue("profile_left_align", "leftAlign")

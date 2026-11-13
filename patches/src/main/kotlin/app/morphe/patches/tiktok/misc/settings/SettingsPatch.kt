@@ -44,12 +44,12 @@ private data class OpenDebugTargets(
 @Suppress("unused")
 val settingsPatch = bytecodePatch(
     name = "Settings",
-    description = "Adds the Prisma settings menu to the top of TikTok settings. Supports TikTok 47.6.3.",
+    description = "Adds the Prisma settings menu to the top of TikTok settings. Supports TikTok 47.7.3.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4763())
+    compatibleWith(*AppCompatibilities.tiktok4773())
 
     execute {
         addLegacySettingsEntryFallback()

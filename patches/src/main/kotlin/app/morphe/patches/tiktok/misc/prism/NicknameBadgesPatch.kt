@@ -51,7 +51,7 @@ val nicknameBadgesPatch = bytecodePatch(
 ) {
     dependsOn(sharedExtensionPatch, badgeImagesPatch)
 
-    compatibleWith(*AppCompatibilities.tiktok4763())
+    compatibleWith(*AppCompatibilities.tiktok4773())
 
     execute {
         var hooked = 0
