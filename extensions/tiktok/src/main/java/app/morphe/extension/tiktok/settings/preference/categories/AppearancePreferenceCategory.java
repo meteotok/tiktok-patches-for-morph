@@ -59,6 +59,12 @@ public final class AppearancePreferenceCategory extends ConditionalPreferenceCat
 
         addPreference(new TogglePreference(
                 context,
+                "Баннеры в профиле",
+                "Показывает баннеры (обложки) в профилях и даёт поставить свой, даже если сервер тебе их ещё не включил. Нужен перезапуск.",
+                Settings.PROFILE_BANNER
+        ));
+        addPreference(new TogglePreference(
+                context,
                 "Новый профиль",
                 "Экспериментально: новая раскладка профиля из свежего TikTok, даже если сервер её тебе ещё не включил. Пока с ней могут пропадать счётчики и «Изменить профиль». Нужен перезапуск.",
                 Settings.NEW_PROFILE_LAYOUT

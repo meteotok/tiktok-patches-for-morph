@@ -39,10 +39,11 @@ public final class NewProfileLayout {
      * TikTok's own profile banner (the "profile background" experiment:
      * "profile_bg_in_allow_list" and "profile_bg_enable_consumption_group").
      * 1 lets you set one on your profile and see other people's.
+     * Independent of the new layout: the banner experiment lives in its own holder.
      */
     public static int banner(int serverValue) {
         try {
-            return Settings.NEW_PROFILE_LAYOUT.get() ? 1 : serverValue;
+            return Settings.PROFILE_BANNER.get() ? 1 : serverValue;
         } catch (Throwable ignored) {
             return serverValue;
         }
