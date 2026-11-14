@@ -17,6 +17,7 @@ private const val PRISM_UI_CLASS = "Lapp/morphe/extension/tiktok/prism/PrismUi;"
 private val DECOR_IMAGES = listOf(
     "web_tr", "web_bl", "spider", "bow_tr", "hearts_bl", "neon_tr", "neon_bl", "rays_tr", "bubble",
     "bauble_tr", "glitter_bl", "sparkle", "branch_tr", "petals_bl", "petal", "prism_tr", "leak_bl",
+    "glow", "bokeh", "heart", "flake", "ember", "fog",
 )
 
 /** Pre-rendered theme decorations, drawn by PrismDecor. */
