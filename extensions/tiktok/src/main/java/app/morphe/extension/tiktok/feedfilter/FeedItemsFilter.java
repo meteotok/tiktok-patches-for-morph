@@ -267,8 +267,12 @@ public final class FeedItemsFilter {
             container -> container instanceof SearchMixFeed
                 ? ((SearchMixFeed) container).getAweme()
                 : null,
+            // A single ad video is dropped. A module that merely *contains* an ad (carousel,
+            // beauty/shade module, shop strip) has no own aweme and is kept, so TikTok search
+            // features aren't cut away together with one sponsored tile.
             container -> container instanceof SearchMixFeed
-                && (((SearchMixFeed) container).isAdOrContainAd()
+                && ((((SearchMixFeed) container).isAdOrContainAd()
+                        && ((SearchMixFeed) container).getAweme() != null)
                     || (AdBlock.enabled() && AdBlock.isSearchAdCard(container))),
             List.of(ADS_FILTER),
             List.of(),

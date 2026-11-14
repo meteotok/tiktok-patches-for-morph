@@ -32,12 +32,12 @@ import app.morphe.extension.tiktok.settings.Settings;
 @SuppressWarnings("unused")
 public final class PrismUpdate {
     /** Build number of this mod version. Bump together with gradle.properties. */
-    public static final int CURRENT_CODE = 909;
-    public static final String CURRENT_NAME = "0.9.9";
+    public static final int CURRENT_CODE = 1000;
+    public static final String CURRENT_NAME = "1.0";
 
     private static final String[] MANIFEST_URLS = {
-            "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/claude/project-thread-thdlg5/prism-update.json",
-            "https://cdn.jsdelivr.net/gh/meteotok/tiktok-patches-for-morph@claude/project-thread-thdlg5/prism-update.json",
+            "https://raw.githubusercontent.com/meteotok/prisma-tiktok/main/prism-update.json",
+            "https://cdn.jsdelivr.net/gh/meteotok/prisma-tiktok@main/prism-update.json",
     };
     private static final String APK_MIME = "application/vnd.android.package-archive";
 

@@ -29,6 +29,19 @@ public class SimSpoofPreferenceCategory extends ConditionalPreferenceCategory {
     @Override
     public void addPreferences(Context context) {
         addPreference(group(context, "Выбор региона"));
+        android.preference.Preference storeRegion = new android.preference.Preference(context) {
+            @Override
+            protected void onBindView(android.view.View view) {
+                super.onBindView(view);
+                app.morphe.extension.tiktok.Utils.setTitleAndSummaryColor(view);
+            }
+        };
+        storeRegion.setTitle("Регион по мнению TikTok");
+        storeRegion.setSummary(app.morphe.extension.tiktok.spoof.sim.StoreRegion.describe()
+                + "\nОт него зависят Ask Tako, Shop и подборки в поиске (например, оттенки по запросу Makeup)."
+                + " Нужно US: пресет США + VPN США, потом очистить кэш.");
+        storeRegion.setSelectable(false);
+        addPreference(storeRegion);
         addPreference(new TogglePreference(
                 context,
                 "Свой регион",

@@ -169,11 +169,13 @@ public class Settings extends BaseSettings {
             new BooleanSetting("enable_non_personalized_search", FALSE, true);
     public static final BooleanSetting ENABLE_LIVE_SEARCH =
             new BooleanSetting("enable_live_search", FALSE, true);
-    // Region spoof is on by default and presents a Dutch KPN SIM (Netherlands preset).
+    // Region spoof is on by default and presents a US T-Mobile SIM (United States preset).
+    // Prisma 1.0 moved off the Netherlands preset: EU regions don't get Ask Tako, TikTok Shop
+    // or the beauty/shade search modules. The _v2 keys make existing installs switch too.
     public static final BooleanSetting SIM_SPOOF = new BooleanSetting("simspoof", TRUE, true);
-    public static final StringSetting SIM_SPOOF_ISO = new StringSetting("simspoof_iso", "nl");
-    public static final StringSetting SIMSPOOF_MCCMNC = new StringSetting("simspoof_mccmnc", "20408");
-    public static final StringSetting SIMSPOOF_OP_NAME = new StringSetting("simspoof_op_name", "KPN");
+    public static final StringSetting SIM_SPOOF_ISO = new StringSetting("simspoof_iso_v2", "us");
+    public static final StringSetting SIMSPOOF_MCCMNC = new StringSetting("simspoof_mccmnc_v2", "310260");
+    public static final StringSetting SIMSPOOF_OP_NAME = new StringSetting("simspoof_op_name_v2", "T-Mobile");
     public static final BooleanSetting SHARE_SHEET_SEND_TO = new BooleanSetting("share_sheet_send_to", TRUE, true);
     // Keep the original key so existing installations retain the user's choice.
     public static final BooleanSetting FORCE_SHOW_AUTO_SCROLL = new BooleanSetting(

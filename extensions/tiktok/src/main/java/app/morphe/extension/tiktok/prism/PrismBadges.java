@@ -46,10 +46,10 @@ import app.morphe.extension.tiktok.settings.Settings;
 @SuppressWarnings("unused")
 public final class PrismBadges {
     public static final String REMOTE_URL =
-            "https://raw.githubusercontent.com/meteotok/tiktok-patches-for-morph/claude/project-thread-thdlg5/prism-badges.txt";
+            "https://raw.githubusercontent.com/meteotok/prisma-tiktok/main/prism-badges.txt";
     /** Same file through jsDelivr, for networks where raw.githubusercontent.com is blocked. */
     private static final String REMOTE_MIRROR_URL =
-            "https://cdn.jsdelivr.net/gh/meteotok/tiktok-patches-for-morph@claude/project-thread-thdlg5/prism-badges.txt";
+            "https://cdn.jsdelivr.net/gh/meteotok/prisma-tiktok@main/prism-badges.txt";
     private static final long REMOTE_REFRESH_MS = 30L * 60 * 1000;
 
     public enum Type {

@@ -8,6 +8,8 @@ package app.morphe.patches.tiktok.misc.spoof.sim
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.Fingerprint
+import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patches.shared.compat.AppCompatibilities
 import app.morphe.patches.tiktok.misc.extension.sharedExtensionPatch
@@ -22,6 +24,12 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val EXTENSION_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/spoof/sim/SpoofSimPatch;"
 private const val REGION_EXTENSION_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/spoof/sim/RegionSpoof;"
+
+// Parses the store-country-code / store-country-code-src cookies TikTok's server sets.
+internal object StoreRegionCookieParseFingerprint : Fingerprint(
+    parameters = listOf("Ljava/util/List;"),
+    strings = listOf("store-country-code=", "store-country-code-src="),
+)
 
 @Suppress("unused")
 val simSpoofPatch = bytecodePatch(
@@ -125,6 +133,27 @@ val simSpoofPatch = bytecodePatch(
                         invoke-static/range { v$resultRegister .. v$resultRegister }, $EXTENSION_CLASS_DESCRIPTOR->$replacement(Ljava/lang/String;)Ljava/lang/String;
                         move-result-object v$resultRegister
                     """,
+                )
+            }
+        }
+
+        // Remember the server-assigned store region (result object is built from
+        // (region, src, legacy) strings) so the settings can show what TikTok really sees.
+        StoreRegionCookieParseFingerprint.method.apply {
+            val ctorIndex = implementation!!.instructions.indexOfFirst { instruction ->
+                if (instruction.opcode != Opcode.INVOKE_DIRECT) return@indexOfFirst false
+                val ref = instruction.getReference<MethodReference>() ?: return@indexOfFirst false
+                ref.name == "<init>" && ref.definingClass == returnType &&
+                    ref.parameterTypes.map { it.toString() } ==
+                    listOf("Ljava/lang/String;", "Ljava/lang/String;", "Ljava/lang/String;")
+            }
+            if (ctorIndex >= 0) {
+                val ctor = getInstruction<FiveRegisterInstruction>(ctorIndex)
+                addInstruction(
+                    ctorIndex + 1,
+                    "invoke-static {v${ctor.registerD}, v${ctor.registerE}, v${ctor.registerF}}, " +
+                        "Lapp/morphe/extension/tiktok/spoof/sim/StoreRegion;->capture(" +
+                        "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
                 )
             }
         }
