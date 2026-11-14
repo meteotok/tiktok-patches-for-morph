@@ -18,7 +18,7 @@ import app.morphe.extension.tiktok.settings.preference.TogglePreference;
 public class SimSpoofPreferenceCategory extends ConditionalPreferenceCategory {
     public SimSpoofPreferenceCategory(Context context, PreferenceScreen screen) {
         super(context, screen);
-        setTitle("Region spoof");
+        setTitle("Подмена региона");
     }
 
     @Override
@@ -28,26 +28,26 @@ public class SimSpoofPreferenceCategory extends ConditionalPreferenceCategory {
 
     @Override
     public void addPreferences(Context context) {
-        addPreference(group(context, "Region selection"));
+        addPreference(group(context, "Выбор региона"));
         addPreference(new TogglePreference(
                 context,
-                "Use custom region",
-                "Use the selected region instead of the device region.",
+                "Свой регион",
+                "Использовать выбранный регион вместо региона устройства.",
                 Settings.SIM_SPOOF
         ));
         InputTextPreference countryIsoPreference = new InputTextPreference(
                 context,
-                "Country ISO", "us, gb, jp, ...",
+                "Код страны (ISO)", "us, gb, jp, ...",
                 Settings.SIM_SPOOF_ISO
         );
         InputTextPreference mccMncPreference = new InputTextPreference(
                 context,
-                "Operator MCC/MNC", "Example: 310260",
+                "MCC/MNC оператора", "Например: 310260",
                 Settings.SIMSPOOF_MCCMNC
         );
         InputTextPreference operatorNamePreference = new InputTextPreference(
                 context,
-                "Operator name", "Example: T-Mobile",
+                "Название оператора", "Например: T-Mobile",
                 Settings.SIMSPOOF_OP_NAME
         );
         SimPresetPreference simPresetPreference = new SimPresetPreference(
@@ -84,7 +84,7 @@ public class SimSpoofPreferenceCategory extends ConditionalPreferenceCategory {
 
         addPreference(simPresetPreference);
 
-        addPreference(group(context, "Manual operator values"));
+        addPreference(group(context, "Оператор вручную"));
         addPreference(countryIsoPreference);
         addPreference(mccMncPreference);
         addPreference(operatorNamePreference);

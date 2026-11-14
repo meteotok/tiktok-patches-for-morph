@@ -21,6 +21,7 @@ import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val EXTENSION_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/spoof/sim/SpoofSimPatch;"
+private const val REGION_EXTENSION_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/spoof/sim/RegionSpoof;"
 
 @Suppress("unused")
 val simSpoofPatch = bytecodePatch(
@@ -33,7 +34,7 @@ val simSpoofPatch = bytecodePatch(
         settingsPatch,
     )
 
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
         val replacements = mapOf(
@@ -45,8 +46,21 @@ val simSpoofPatch = bytecodePatch(
             "getNetworkOperatorName" to "getOperatorName",
         )
 
+        // System region and time zone are reported next to the SIM values (sys_region, tz_name,
+        // timezone_name), so spoof them too or a Russian phone still looks Russian.
+        val regionReplacements = mapOf(
+            Triple("Ljava/util/Locale;", "getCountry", "Ljava/lang/String;") to
+                "$REGION_EXTENSION_CLASS_DESCRIPTOR->getCountry(Ljava/lang/String;)Ljava/lang/String;",
+            Triple("Ljava/util/TimeZone;", "getID", "Ljava/lang/String;") to
+                "$REGION_EXTENSION_CLASS_DESCRIPTOR->getTimeZoneId(Ljava/lang/String;)Ljava/lang/String;",
+            Triple("Ljava/util/TimeZone;", "getRawOffset", "I") to
+                "$REGION_EXTENSION_CLASS_DESCRIPTOR->getRawOffset(I)I",
+        )
+
         val patchesByMethod = linkedMapOf<Method, ArrayDeque<Pair<Int, String>>>()
         classDefForEach { classDef ->
+            // Never rewrite the extension itself (RegionSpoof calls TimeZone.getID()).
+            if (classDef.type.startsWith("Lapp/morphe/")) return@classDefForEach
             for (method in classDef.methods) {
                 val implementation = method.implementation ?: continue
                 implementation.instructions.forEachIndexed { index, instruction ->
@@ -57,6 +71,14 @@ val simSpoofPatch = bytecodePatch(
 
                     val methodReference = instruction.getReference<MethodReference>()
                         ?: return@forEachIndexed
+                    if (methodReference.parameterTypes.isEmpty()) {
+                        regionReplacements[
+                            Triple(methodReference.definingClass, methodReference.name, methodReference.returnType)
+                        ]?.let { target ->
+                            patchesByMethod.getOrPut(method) { ArrayDeque() }.add(index to "@$target")
+                            return@forEachIndexed
+                        }
+                    }
                     val replacement = when {
                         methodReference.definingClass == "Landroid/telephony/TelephonyManager;" ->
                             replacements[methodReference.name]
@@ -78,12 +100,29 @@ val simSpoofPatch = bytecodePatch(
             val mutableMethod = mutableClassDefBy(method.definingClass).findMutableMethodOf(method)
             while (patches.isNotEmpty()) {
                 val (index, replacement) = patches.removeLast()
-                val resultRegister = mutableMethod.getInstruction<OneRegisterInstruction>(index + 1).registerA
+                val resultInstruction = mutableMethod.getInstruction(index + 1)
+                if (resultInstruction.opcode != Opcode.MOVE_RESULT &&
+                    resultInstruction.opcode != Opcode.MOVE_RESULT_OBJECT
+                ) continue // Result unused.
+                val resultRegister = (resultInstruction as OneRegisterInstruction).registerA
+
+                if (replacement.startsWith("@")) {
+                    val target = replacement.substring(1)
+                    val move = if (resultInstruction.opcode == Opcode.MOVE_RESULT) "move-result" else "move-result-object"
+                    mutableMethod.addInstructions(
+                        index + 2,
+                        """
+                            invoke-static/range { v$resultRegister .. v$resultRegister }, $target
+                            $move v$resultRegister
+                        """,
+                    )
+                    continue
+                }
 
                 mutableMethod.addInstructions(
                     index + 2,
                     """
-                        invoke-static { v$resultRegister }, $EXTENSION_CLASS_DESCRIPTOR->$replacement(Ljava/lang/String;)Ljava/lang/String;
+                        invoke-static/range { v$resultRegister .. v$resultRegister }, $EXTENSION_CLASS_DESCRIPTOR->$replacement(Ljava/lang/String;)Ljava/lang/String;
                         move-result-object v$resultRegister
                     """,
                 )

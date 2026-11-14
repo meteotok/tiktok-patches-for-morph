@@ -118,16 +118,22 @@ public final class FeedItemsFilter {
             );
         }
 
+        List original = feedItemList.items;
         filterFeedList(
             "FeedItemList:response",
             feedItemList,
-            feedItemList.items,
+            original,
             container -> (container instanceof Aweme) ? (Aweme) container : null,
             verbose,
             true,
             FilterPhase.RESPONSE,
             true
         );
+        try {
+            WatchedForYou.apply(feedItemList, original, CONTENT_FILTERS);
+        } catch (RuntimeException | LinkageError error) {
+            logInstallFailure("FeedItemList:watched", error);
+        }
     }
 
     /**
@@ -230,7 +236,7 @@ public final class FeedItemsFilter {
             return originalReturnList;
         }
         try {
-            followFeedList.mItems = outcome.effectiveList;
+            followFeedList.items = outcome.effectiveList;
             recordAiOutcome("FollowFeedList:getItems", outcome, "ASSIGNED_AND_RETURNED");
             return outcome.effectiveList;
         } catch (RuntimeException | LinkageError error) {
@@ -262,7 +268,8 @@ public final class FeedItemsFilter {
                 ? ((SearchMixFeed) container).getAweme()
                 : null,
             container -> container instanceof SearchMixFeed
-                && ((SearchMixFeed) container).isAdOrContainAd(),
+                && (((SearchMixFeed) container).isAdOrContainAd()
+                    || (AdBlock.enabled() && AdBlock.isSearchAdCard(container))),
             List.of(ADS_FILTER),
             List.of(),
             false,
@@ -554,7 +561,7 @@ public final class FeedItemsFilter {
     ) {
         boolean verbose = BaseSettings.DEBUG.get();
 
-        if (followFeedList == null || followFeedList.mItems == null) {
+        if (followFeedList == null || followFeedList.items == null) {
             if (verbose) {
                 logNullItems("FollowFeedList", followFeedListNullItemsLogCount);
             }
@@ -564,7 +571,7 @@ public final class FeedItemsFilter {
         if (verbose && shouldLogBatch()) {
             debugLogBatch(
                 "FollowFeedList",
-                followFeedList.mItems,
+                followFeedList.items,
                 "phase=" + phase
                     + " feedType=" + followFeedList.feedType
                     + " hasMore=" + followFeedList.hasMore
@@ -576,7 +583,7 @@ public final class FeedItemsFilter {
         filterFeedList(
             phase == FilterPhase.RESPONSE ? "FollowFeedList:response" : "FollowFeedList:late",
             followFeedList,
-            followFeedList.mItems,
+            followFeedList.items,
             container -> (container instanceof FollowFeed) ? ((FollowFeed) container).aweme : null,
             verbose,
             allowRecentSkip,
@@ -628,7 +635,8 @@ public final class FeedItemsFilter {
         List<IFilter> configuredContentFilters = forYou
             ? (includeNonAi ? FOR_YOU_FILTERS : ALTERNATE_ONLY_FILTERS)
             : (includeNonAi ? (phase == FilterPhase.RESPONSE ? CONTENT_FILTERS : LATE_FOLLOW_FILTERS) : List.of());
-        List<IFilter> configuredRangeFilters = includeNonAi && phase == FilterPhase.RESPONSE
+        // Like/view ranges only shape For You recommendations, never Following, search or profiles.
+        List<IFilter> configuredRangeFilters = forYou && includeNonAi && phase == FilterPhase.RESPONSE
             ? RANGE_FILTERS : List.of();
         List<IFilter> activeContentFilters = getActiveFilters(configuredContentFilters, settings);
         List<IFilter> activeRangeFilters = getActiveFilters(configuredRangeFilters, settings);
@@ -668,13 +676,13 @@ public final class FeedItemsFilter {
                 if (!settings.matchesCurrentPolicy()) {
                     installation = "STALE_POLICY";
                 } else if (owner instanceof FeedItemList && ((FeedItemList) owner).items != list
-                    || owner instanceof FollowFeedList && ((FollowFeedList) owner).mItems != list) {
+                    || owner instanceof FollowFeedList && ((FollowFeedList) owner).items != list) {
                     installation = "STALE_OWNER";
                 } else {
                 if (owner instanceof FeedItemList) {
                     ((FeedItemList) owner).items = outcome.effectiveList;
                 } else if (owner instanceof FollowFeedList) {
-                    ((FollowFeedList) owner).mItems = outcome.effectiveList;
+                    ((FollowFeedList) owner).items = outcome.effectiveList;
                 } else {
                     throw new IllegalStateException(
                         "Unsupported feed list owner: " + (owner == null ? "null" : owner.getClass().getName())

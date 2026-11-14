@@ -7,11 +7,18 @@ package app.morphe.patches.tiktok.captchapopup
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import app.morphe.patches.shared.compat.AppCompatibilities
 import app.morphe.patches.tiktok.misc.extension.sharedExtensionPatch
 import app.morphe.patches.tiktok.misc.settings.SettingsStatusLoadFingerprint
 
+// Obfuscated callback types are renamed every release (46.2.3: 13fZ/13eU/1Cc3, 47.5.3: 1HvC/195r/1WMG,
+// 47.6.3: 1S38/1SQN/1W4I), so fingerprints match them by prefix and the patch reads the real types
+// from the matched methods.
 private const val FEATURE_CONTROLS_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/featurecontrols/FeatureControls;"
 
 private object CaptchaPopupFingerprint : Fingerprint(
@@ -21,8 +28,10 @@ private object CaptchaPopupFingerprint : Fingerprint(
     parameters = listOf(
         "Landroid/app/Activity;",
         "Ljava/lang/String;",
-        "LX/13fZ;",
+        "LX/",
         "Landroidx/fragment/app/Fragment;",
+        // 47.5.3 moved the body into an overload with an extra scene argument.
+        "Ljava/lang/String;",
     ),
     strings = listOf("popCaptchaV2 - riskInfo ="),
 )
@@ -31,7 +40,7 @@ private object LegacyCaptchaPopupFingerprint : Fingerprint(
     definingClass = "/sec/SecApiImpl;",
     name = "popCaptcha",
     returnType = "V",
-    parameters = listOf("Landroid/app/Activity;", "I", "LX/13fZ;"),
+    parameters = listOf("Landroid/app/Activity;", "I", "LX/"),
     strings = listOf("popCaptcha - errorcode = "),
 )
 
@@ -39,7 +48,7 @@ private object OecCaptchaPopupFingerprint : Fingerprint(
     definingClass = "Lcom/tts/oecverify/verify/RiskControlService;",
     name = "execute",
     returnType = "Z",
-    parameters = listOf("LX/13eU;", "Lcom/tts/oecverify/BdTuringCallback;"),
+    parameters = listOf("LX/", "Lcom/tts/oecverify/BdTuringCallback;"),
 )
 
 private object LiveHostCaptchaPopupFingerprint : Fingerprint(
@@ -49,7 +58,7 @@ private object LiveHostCaptchaPopupFingerprint : Fingerprint(
     parameters = listOf(
         "Landroid/app/Activity;",
         "Ljava/lang/String;",
-        "LX/1Cc3;",
+        "LX/",
         "Landroidx/fragment/app/Fragment;",
     ),
 )
@@ -60,7 +69,7 @@ private object BdTuringCaptchaPopupFingerprint : Fingerprint(
     returnType = "V",
     parameters = listOf(
         "Landroid/app/Activity;",
-        "LX/13eU;",
+        "LX/",
         "Lcom/tts/oecverify/BdTuringCallback;",
     ),
 )
@@ -72,9 +81,19 @@ val hideCaptchaPopupsPatch = bytecodePatch(
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
-    compatibleWith(*AppCompatibilities.tiktok4623())
+    compatibleWith(*AppCompatibilities.tiktok4763())
 
     execute {
+        // Secure-API callback (a class): its fail/cancel method keeps the stock LIZJ()V name.
+        val secCallbackType = CaptchaPopupFingerprint.method.parameterTypes[2].toString()
+        // LIVE callback (an interface): reuse whatever stock invokes when there is no activity.
+        val liveFailMethod = LiveHostCaptchaPopupFingerprint.method.implementation!!.instructions
+            .firstNotNullOfOrNull { instruction ->
+                if (instruction.opcode != Opcode.INVOKE_INTERFACE) return@firstNotNullOfOrNull null
+                (instruction as ReferenceInstruction).reference as? MethodReference
+            } ?: throw PatchException("Hide CAPTCHA popups: LIVE callback fail method not found.")
+        val liveFailReference = "${liveFailMethod.definingClass}->${liveFailMethod.name}()V"
+
         SettingsStatusLoadFingerprint.method.addInstruction(
             0,
             "invoke-static {}, Lapp/morphe/extension/tiktok/settings/SettingsStatus;->enableCaptchaPopupSuppression()V",
@@ -87,7 +106,7 @@ val hideCaptchaPopupsPatch = bytecodePatch(
                 move-result v0
                 if-eqz v0, :morphe_show_captcha_popup
                 if-eqz p3, :morphe_hide_captcha_popup_return
-                invoke-virtual {p3}, LX/13fZ;->LIZJ()V
+                invoke-virtual {p3}, $secCallbackType->LIZJ()V
                 :morphe_hide_captcha_popup_return
                 return-void
                 :morphe_show_captcha_popup
@@ -102,7 +121,7 @@ val hideCaptchaPopupsPatch = bytecodePatch(
                 move-result v0
                 if-eqz v0, :morphe_show_legacy_captcha_popup
                 if-eqz p3, :morphe_hide_legacy_captcha_popup_return
-                invoke-virtual {p3}, LX/13fZ;->LIZJ()V
+                invoke-virtual {p3}, $secCallbackType->LIZJ()V
                 :morphe_hide_legacy_captcha_popup_return
                 return-void
                 :morphe_show_legacy_captcha_popup
@@ -134,7 +153,7 @@ val hideCaptchaPopupsPatch = bytecodePatch(
                 move-result v0
                 if-eqz v0, :morphe_show_live_captcha_popup
                 if-eqz p3, :morphe_hide_live_captcha_popup_return
-                invoke-interface {p3}, LX/1Cc3;->LIZIZ()V
+                invoke-interface {p3}, $liveFailReference
                 :morphe_hide_live_captcha_popup_return
                 return-void
                 :morphe_show_live_captcha_popup

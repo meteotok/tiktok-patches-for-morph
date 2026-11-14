@@ -66,12 +66,14 @@ private val boundaries = listOf(
 )
 
 @Suppress("unused")
-val featureGateLabPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val featureGateLabPatch = bytecodePatch(
     name = "Feature Gate Lab",
     description = "Adds a menu for viewing and overriding supported TikTok feature flags and configuration values.",
     default = true,
 ) {
     dependsOn(settingsPatch)
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

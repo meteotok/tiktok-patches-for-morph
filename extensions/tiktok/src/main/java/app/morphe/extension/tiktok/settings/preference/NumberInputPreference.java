@@ -41,7 +41,7 @@ public class NumberInputPreference extends EditTextPreference {
         int clampedValue = parseAndClamp(value);
         String text = String.valueOf(clampedValue);
         setText(text);
-        setSummary(baseSummary + "\nCurrent: " + text + " videos");
+        setSummary(baseSummary + "\nСейчас: " + text + " видео");
     }
 
     @Override
@@ -105,7 +105,7 @@ public class NumberInputPreference extends EditTextPreference {
 
     @Override
     protected void onPrepareDialogBuilder(AlertDialog.Builder builder) {
-        builder.setPositiveButton("Save", (dialog, which)
+        builder.setPositiveButton("Сохранить", (dialog, which)
                 -> this.onClick(dialog, DialogInterface.BUTTON_POSITIVE));
         builder.setNegativeButton(android.R.string.cancel, null);
     }

@@ -9,7 +9,8 @@ import java.util.List;
 
 @SuppressWarnings("unused")
 public class FollowFeedList {
-    public List mItems;
+    // Named mItems on 46.2.3.
+    public List items;
     public int feedType;
     public int hasMore;
     public long cursor;

@@ -17,13 +17,15 @@ import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 private const val EXTENSION_CLASS_DESCRIPTOR = "Lapp/morphe/extension/tiktok/translation/CommentBatchTranslator;"
 
 @Suppress("unused")
-val commentTranslationPatch = bytecodePatch(
+// Not ported to TikTok 47.5.3 yet: kept out of the bundle so it can't break patching.
+private val commentTranslationPatch = bytecodePatch(
     name = "Translate comments",
     description = "Adds comment translation controls using TikTok's translation system, with selectable language exclusions.",
     default = true,
 ) {
     dependsOn(sharedExtensionPatch)
 
+    // Not yet ported to TikTok 47.5.3; its fingerprints only match 46.2.3.
     compatibleWith(*AppCompatibilities.tiktok4623())
 
     execute {

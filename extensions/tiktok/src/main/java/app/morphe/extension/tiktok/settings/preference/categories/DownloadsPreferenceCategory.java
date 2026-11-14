@@ -22,7 +22,7 @@ import app.morphe.extension.tiktok.offline.CustomOfflineVideosLimitPatch;
 public class DownloadsPreferenceCategory extends ConditionalPreferenceCategory {
     public DownloadsPreferenceCategory(Context context, PreferenceScreen screen) {
         super(context, screen);
-        setTitle("Downloads");
+        setTitle("Скачивание");
     }
 
     @Override
@@ -32,69 +32,69 @@ public class DownloadsPreferenceCategory extends ConditionalPreferenceCategory {
 
     @Override
     public void addPreferences(Context context) {
-        addPreference(group(context, "Video downloads"));
+        addPreference(group(context, "Скачивание видео"));
         addPreference(new DownloadQualityPreference(
                 context,
                 Settings.DOWNLOAD_VIDEO_QUALITY
         ));
         addPreference(new TogglePreference(
                 context,
-                "Remove watermark",
-                "Apply to video downloads and image downloads.",
+                "Без водяного знака",
+                "Для скачивания видео и картинок.",
                 Settings.DOWNLOAD_WATERMARK
         ));
 
-        addPreference(group(context, "Save locations"));
+        addPreference(group(context, "Куда сохранять"));
         addPreference(new DownloadPathPreference(
                 context,
-                "Video destination",
+                "Папка для видео",
                 Settings.DOWNLOAD_VIDEO_PATH,
                 DownloadDestination.Kind.VIDEO
         ));
         addPreference(new DownloadPathPreference(
                 context,
-                "Photo destination",
+                "Папка для фото",
                 Settings.DOWNLOAD_PHOTO_PATH,
                 DownloadDestination.Kind.PHOTO
         ));
         addPreference(new DownloadPathPreference(
                 context,
-                "Sticker destination",
+                "Папка для стикеров",
                 Settings.DOWNLOAD_STICKER_PATH,
                 DownloadDestination.Kind.STICKER
         ));
 
-        addPreference(group(context, "File names"));
+        addPreference(group(context, "Имена файлов"));
         addPreference(new InputTextPreference(
                 context,
-                "Video filename",
-                "Tokens: {creator}, {date}, {video_id}, {story_id}. Story ID is an alias for the current item's video ID. The file extension is kept automatically.",
+                "Имя файла видео",
+                "Шаблоны: {creator}, {date}, {video_id}, {story_id}. {story_id} — то же, что ID видео. Расширение подставится само.",
                 Settings.DOWNLOAD_VIDEO_FILENAME_TEMPLATE
         ));
         addPreference(new InputTextPreference(
                 context,
-                "Photo filename",
-                "Tokens: {creator}, {date}, {video_id}, {story_id}, {index}. Story ID is an alias for the current item's video ID. The file extension is kept automatically.",
+                "Имя файла фото",
+                "Шаблоны: {creator}, {date}, {video_id}, {story_id}, {index}. {story_id} — то же, что ID видео. Расширение подставится само.",
                 Settings.DOWNLOAD_PHOTO_FILENAME_TEMPLATE
         ));
         addPreference(new InputTextPreference(
                 context,
-                "Comment media filename",
-                "Tokens: {date}, {media_id}. Works for image and video stickers.",
+                "Имя файла медиа из комментариев",
+                "Шаблоны: {date}, {media_id}. Для картинок и видео-стикеров.",
                 Settings.DOWNLOAD_COMMENT_MEDIA_FILENAME_TEMPLATE
         ));
 
-        addPreference(group(context, "Offline viewing"));
+        addPreference(group(context, "Офлайн-просмотр"));
         addPreference(new TogglePreference(
                 context,
-                "Custom offline videos",
-                "Adds a custom option to TikTok's offline videos menu after restart.",
+                "Своё число офлайн-видео",
+                "Добавляет свой вариант в меню офлайн-видео TikTok (после перезапуска).",
                 Settings.CUSTOM_OFFLINE_VIDEOS
         ));
         addPreference(new NumberInputPreference(
                 context,
-                "Offline videos limit",
-                "Choose 1-1000 videos. Values outside this range use the nearest valid limit. Restart TikTok after saving.",
+                "Лимит офлайн-видео",
+                "От 1 до 1000 видео. Значения вне диапазона округляются до ближайшего. После сохранения перезапусти TikTok.",
                 Settings.CUSTOM_OFFLINE_VIDEO_LIMIT,
                 CustomOfflineVideosLimitPatch.MIN_LIMIT,
                 CustomOfflineVideosLimitPatch.MAX_LIMIT

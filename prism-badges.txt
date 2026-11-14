@@ -1,0 +1,7 @@
+# Prism nickname badges, shared with everyone running Prism.
+# One per line: nickname = type
+# Types: verified, crown, star, heart, bolt, comet
+# Nicknames are matched without the leading @ and case-insensitively.
+# Example:
+# my_username = crown
+meteotok.tiktok_offical = crown
