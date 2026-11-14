@@ -1,6 +1,6 @@
 {
-  "code": 809,
-  "name": "0.8.9",
-  "url": "",
-  "notes": ""
+  "code": 1000,
+  "name": "1.0",
+  "url": "https://github.com/meteotok/prisma-tiktok",
+  "notes": "Prisma переехала на github.com/meteotok/prisma-tiktok. Там скачай prisma-1.0.mpp, добавь его в Morphe Manager и перепатчи TikTok 47.7.3. Кнопка «Обновить» сама не поставит, жми «Пропустить» и качай по ссылке."
 }
