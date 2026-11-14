@@ -798,11 +798,152 @@ def light_leak(path):
     save(s, path, 'lrtb')
 
 
+# ---------------------------------------------------------------- shared sprites (tinted in the app)
+
+def glow(path):
+    """Soft white light, tinted at runtime: corner auras, pumpkin light, embers."""
+    r = 40 * S
+    w = h = int(2 * r)
+    s, c = surface(w, h)
+    g = cairo.RadialGradient(r, r, 0, r, r, r)
+    for t in range(0, 11):
+        f = t / 10
+        g.add_color_stop_rgba(f, 1, 1, 1, (1 - f) ** 2.2)
+    c.set_source(g)
+    c.paint()
+    save(s, path)
+
+
+def bokeh(path):
+    """An out-of-focus light: soft disc with a slightly brighter rim, tinted at runtime."""
+    r = 16 * S
+    w = h = int(2 * r + 6)
+    s, c = surface(w, h)
+    x = y = w / 2
+    g = cairo.RadialGradient(x, y, 0, x, y, r)
+    g.add_color_stop_rgba(0, 1, 1, 1, 0.35)
+    g.add_color_stop_rgba(0.75, 1, 1, 1, 0.45)
+    g.add_color_stop_rgba(0.92, 1, 1, 1, 0.8)
+    g.add_color_stop_rgba(1, 1, 1, 1, 0)
+    c.set_source(g)
+    c.arc(x, y, r, 0, 2 * math.pi)
+    c.fill()
+    save(blur(s, 0.8 * S), path)
+
+
+def heart_sprite(path):
+    r = 9 * S
+    w = h = int(3.2 * r)
+    s, c = surface(w, h)
+    shadow, sh = surface(w, h)
+    sh.set_source_rgba(0, 0, 0, 0.5)
+    sh.arc(w / 2 + 0.8 * S, h / 2 + 1.6 * S, r * 0.95, 0, 2 * math.pi)
+    sh.fill()
+    over(c, blur(shadow, 1.6 * S), 0.6)
+    glossy_heart(c, w / 2, h / 2 + r * 0.1, r, (0.98, 0.36, 0.62), (0.62, 0.06, 0.30))
+    save(s, path)
+
+
+def flake(path):
+    """A gold leaf flake: thin, crumpled, catches light on one side."""
+    w, h = int(14 * S), int(10 * S)
+    s, c = surface(w, h)
+    rng = random.Random(12)
+    pts = []
+    for i in range(9):
+        a = i / 9 * 2 * math.pi
+        rad = rng.uniform(0.7, 1.0)
+        pts.append((w / 2 + math.cos(a) * w * 0.46 * rad, h / 2 + math.sin(a) * h * 0.44 * rad))
+    c.move_to(*pts[0])
+    for p in pts[1:]:
+        c.line_to(*p)
+    c.close_path()
+    g = cairo.LinearGradient(0, 0, w, h)
+    for t, col in ((0, (1, 0.96, 0.7)), (0.35, (1, 0.82, 0.32)), (0.6, (0.72, 0.5, 0.1)), (1, (1, 0.9, 0.5))):
+        g.add_color_stop_rgb(t, *col)
+    c.set_source(g)
+    c.fill()
+    save(s, path)
+
+
+def ember(path):
+    r = 6 * S
+    w = h = int(2 * r)
+    s, c = surface(w, h)
+    g = cairo.RadialGradient(r, r, 0, r, r, r)
+    g.add_color_stop_rgba(0, 1, 0.97, 0.8, 1)
+    g.add_color_stop_rgba(0.18, 1, 0.75, 0.3, 0.95)
+    g.add_color_stop_rgba(0.45, 1, 0.45, 0.08, 0.35)
+    g.add_color_stop_rgba(1, 1, 0.3, 0.0, 0)
+    c.set_source(g)
+    c.paint()
+    save(s, path)
+
+
+def fog(path):
+    """A wide wisp of mist, drifted sideways in the app."""
+    w, h = int(260 * S), int(80 * S)
+    s, c = surface(w, h)
+    rng = random.Random(21)
+    for i in range(70):
+        x = rng.uniform(0.05, 0.95) * w
+        y = h * (0.55 + rng.gauss(0, 0.12))
+        rx = rng.uniform(18, 46) * S
+        ry = rx * rng.uniform(0.25, 0.45)
+        g = cairo.RadialGradient(x, y, 0, x, y, rx)
+        g.add_color_stop_rgba(0, 0.86, 0.84, 0.95, 0.10)
+        g.add_color_stop_rgba(1, 0.86, 0.84, 0.95, 0)
+        c.save()
+        c.translate(x, y)
+        c.scale(1, ry / rx)
+        c.translate(-x, -y)
+        c.set_source(g)
+        c.arc(x, y, rx, 0, 2 * math.pi)
+        c.fill()
+        c.restore()
+    save(blur(s, 4 * S), path, 'lrtb')
+
+
+def web_top_right_rich(path):
+    """Denser top-right web with more dew, so it reads well over bright videos too."""
+    w, h = int(170 * S), int(190 * S)
+    st = Strands(w, h, 17)
+    hub = (0.66 * w, 0.30 * h)
+    frame = [(0.12 * w, 0.03 * h), (0.55 * w, 0.015 * h), (0.93 * w, 0.04 * h), (0.985 * w, 0.14 * h),
+             (0.975 * w, 0.52 * h), (0.92 * w, 0.78 * h), (0.80 * w, 0.92 * h), (0.52 * w, 0.62 * h),
+             (0.05 * w, 0.22 * h)]
+    orb_web(st, hub, frame, spokes=19, rings=13, broken=0.10)
+    rng = st.rng
+    for a, b in (((0.12 * w, 0.03 * h), (0.08 * w, 0.0)), ((0.55 * w, 0.015 * h), (0.52 * w, 0.0)),
+                 ((0.93 * w, 0.04 * h), (0.98 * w, 0.0)), ((0.985 * w, 0.14 * h), (w - 1, 0.13 * h)),
+                 ((0.975 * w, 0.52 * h), (w - 1, 0.54 * h))):
+        st.line([a, b], 1.4 * S * 0.45, 0.9)
+    st.line(st.sag((0.05 * w, 0.22 * h), (0.0, 0.24 * h), 0.0), 1.4 * S * 0.45, 0.9)
+    st.line(st.sag((0.80 * w, 0.92 * h), (0.84 * w, h - 1), 0.0), 1.4 * S * 0.45, 0.9)
+    st.line(st.sag((0.52 * w, 0.62 * h), (0.0, 0.32 * h), 0.02), 1.1 * S * 0.45, 0.7)
+    # Extra dew on random ring threads.
+    for _ in range(14):
+        ang = rng.uniform(0, 2 * math.pi)
+        f = rng.uniform(0.25, 0.85)
+        x, y = hub[0] + math.cos(ang) * f * 0.42 * w, hub[1] + math.sin(ang) * f * 0.42 * h
+        if 0.05 * w < x < 0.97 * w and 0.03 * h < y < 0.9 * h:
+            st.drops.append((x, y, rng.uniform(0.9, 1.7) * S))
+    out = st.render(base=(0.86, 0.86, 0.92))
+    save(out, path)
+    return hub[0] / w, hub[1] / h
+
+
 def main(out, preview=None):
     import os
     os.makedirs(out, exist_ok=True)
     p = lambda name: os.path.join(out, f"prism_decor_{name}.png")
-    hub = web_top_right(p("web_tr"))
+    hub = web_top_right_rich(p("web_tr"))
+    glow(p("glow"))
+    bokeh(p("bokeh"))
+    heart_sprite(p("heart"))
+    flake(p("flake"))
+    ember(p("ember"))
+    fog(p("fog"))
     web_bottom_left(p("web_bl"))
     attach = spider(p("spider"))
     bow(p("bow_tr"))

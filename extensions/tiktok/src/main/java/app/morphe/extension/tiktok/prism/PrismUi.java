@@ -79,7 +79,7 @@ public final class PrismUi {
 
     private static void attach(Activity activity) {
         if (scanners.containsKey(activity)) {
-            scanners.get(activity).schedule();
+            scanners.get(activity).setResumed(true);
             return;
         }
         Scanner scanner = new Scanner(activity);
@@ -117,6 +117,10 @@ public final class PrismUi {
 
         @Override
         public void onActivityPaused(@NonNull Activity activity) {
+            Scanner scanner = scanners.get(activity);
+            if (scanner != null) {
+                scanner.setResumed(false);
+            }
         }
 
         @Override
@@ -199,6 +203,31 @@ public final class PrismUi {
 
         // region theme decorations
 
+        private boolean resumed = true;
+
+        void setResumed(boolean resumed) {
+            this.resumed = resumed;
+            if (decor != null) {
+                PrismDecor layer = PrismDecor.existing(decor);
+                if (layer != null) {
+                    layer.setActive(resumed && fullScreen(decor));
+                }
+            }
+            if (resumed) {
+                schedule();
+            }
+        }
+
+        /** Dialog-like activities (floating or smaller than the screen) get no decorations. */
+        private boolean fullScreen(View root) {
+            Activity activity = activityRef.get();
+            if (activity == null || activity.getWindow() == null || activity.getWindow().isFloating()) {
+                return false;
+            }
+            android.util.DisplayMetrics metrics = root.getResources().getDisplayMetrics();
+            return root.getWidth() >= metrics.widthPixels * 0.9f && root.getHeight() >= metrics.heightPixels * 0.8f;
+        }
+
         private void updateDecor(View root) {
             if (!PrismDecor.enabled()) {
                 PrismDecor existing = decorRef.get();
@@ -207,25 +236,39 @@ public final class PrismUi {
                 }
                 return;
             }
+            boolean full = fullScreen(root);
+            if (!full && PrismDecor.existing(root) == null) {
+                return;
+            }
             PrismDecor layer = PrismDecor.attach(root);
             decorRef = new WeakReference<>(layer);
+            layer.setActive(resumed && full);
             int top = 0;
             int bottom = 0;
+            boolean keyboard = false;
+            float density = root.getResources().getDisplayMetrics().density;
             android.view.WindowInsets insets = root.getRootWindowInsets();
             if (insets != null) {
-                top = insets.getSystemWindowInsetTop();
-                bottom = insets.getSystemWindowInsetBottom();
+                top = Math.max(insets.getStableInsetTop(), insets.getSystemWindowInsetTop());
+                // Stable insets leave out the keyboard: the anchor stays put while typing.
+                bottom = insets.getStableInsetBottom();
+                keyboard = insets.getSystemWindowInsetBottom() - bottom > 120 * density;
             }
             View bar = barRef.get();
-            if (bar != null && bar.isShown()) {
+            if (bar != null && bar.isShown() && bar.getAlpha() > 0.5f) {
                 int[] barLocation = new int[2];
                 int[] rootLocation = new int[2];
                 bar.getLocationOnScreen(barLocation);
                 root.getLocationOnScreen(rootLocation);
-                bottom = Math.max(bottom, rootLocation[1] + root.getHeight() - barLocation[1]);
+                // Where the bar rests, not where a show/hide animation has it right now.
+                float barTop = barLocation[1] - bar.getTranslationY();
+                int barHeight = Math.round(rootLocation[1] + root.getHeight() - barTop);
+                if (barHeight > 0 && barHeight < 160 * density) {
+                    bottom = Math.max(bottom, barHeight);
+                }
             }
             layer.setInsets(top, bottom);
-            layer.setVariant(screenVariant(root));
+            layer.setKeyboard(keyboard);
             collectObstacles(root);
             layer.invalidateSelf();
         }
@@ -254,7 +297,7 @@ public final class PrismUi {
                     || !view.getGlobalVisibleRect(visible)) {
                 return;
             }
-            if (view instanceof EditText) {
+            if (view instanceof EditText && view.isShown()) {
                 // Inputs get extra room so the keyboard row and send button stay clear.
                 RectF rect = new RectF(visible);
                 float pad = 18 * view.getResources().getDisplayMetrics().density;
@@ -280,19 +323,6 @@ public final class PrismUi {
                 out[i * 4 + 3] = rect.bottom;
             }
             return out;
-        }
-
-        /** Bottom tab index on the main screen, else a stable number per screen class. */
-        private int screenVariant(View root) {
-            View bar = barRef.get();
-            if (isMain && bar != null && bar.isShown()) {
-                View selected = selectedTab(bar);
-                if (selected != null && selected.getParent() instanceof ViewGroup) {
-                    return ((ViewGroup) selected.getParent()).indexOfChild(selected);
-                }
-            }
-            Activity activity = activityRef.get();
-            return activity == null ? 0 : (activity.getClass().getName().hashCode() & 0x7fffffff) % 4;
         }
 
         // endregion
